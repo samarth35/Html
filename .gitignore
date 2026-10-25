@@ -1,8 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
 # Dependencies
-# The root package.json / package-lock.json are kept only for reference - the
-# backend is Flask/Python (see jainzee-website/requirements.txt) and nothing
-# imports the @vercel/blob Node SDK. Installed packages are never needed here.
 node_modules/
 
-# Test/tooling caches
+# Test & tooling caches
 .pytest_cache/
+null/
+.coverage
+htmlcov/
+
+# Temporary / test generated invoices & PDFs
+*.pdf
+
+# OS artifacts & editor backups
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
