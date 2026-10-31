@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <script src="/static/js/csrf.js"></script>
 <script src="/static/js/premium.js?v=1.0"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
     <!-- ===== NAVBAR ===== -->
@@ -152,9 +153,14 @@
                             <label style="display: block; color: var(--text); font-weight: 600; margin-bottom: 12px;" data-i18n="checkout_payment">Payment Method</label>
                             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                                 <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e8e0d5; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: #fdfaf6; color: #1a1a1a;">
+                                    <input type="radio" name="payment" value="razorpay" id="payRazorpay" style="accent-color: var(--primary);">
+                                    <i class="fas fa-credit-card" style="color: var(--primary); font-size: 1.5rem;"></i>
+                                    <span style="color: #1a1a1a !important; font-weight: 600;" data-i18n="checkout_razorpay">Razorpay (Cards / UPI / Netbanking)</span>
+                                </label>
+                                <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e8e0d5; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: #fdfaf6; color: #1a1a1a;">
                                     <input type="radio" name="payment" value="upi" id="payUpi" style="accent-color: var(--primary);">
                                     <i class="fas fa-mobile-alt" style="color: var(--primary); font-size: 1.5rem;"></i>
-                                    <span style="color: #1a1a1a !important; font-weight: 600;" data-i18n="checkout_upi">Pay via UPI</span>
+                                    <span style="color: #1a1a1a !important; font-weight: 600;" data-i18n="checkout_upi">Direct UPI</span>
                                 </label>
                                 <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e8e0d5; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: #fdfaf6; color: #1a1a1a;">
                                     <input type="radio" name="payment" value="cod" id="payCod" style="accent-color: var(--primary);">
@@ -296,7 +302,8 @@
                 'checkout_phone': 'Phone Number',
                 'checkout_address': 'Delivery Address',
                 'checkout_payment': 'Payment Method',
-                'checkout_upi': 'Pay via UPI',
+                'checkout_razorpay': 'Razorpay (Cards / UPI / Netbanking)',
+                'checkout_upi': 'Direct UPI',
                 'checkout_cod': 'Cash on Delivery (COD)',
                 'checkout_place_order': 'Place Order',
                 'checkout_upi_instructions': 'Scan QR code or click to pay via UPI',
@@ -331,7 +338,8 @@
                 'checkout_phone': 'फ़ोन नंबर',
                 'checkout_address': 'डिलीवरी पता',
                 'checkout_payment': 'भुगतान का तरीका',
-                'checkout_upi': 'UPI के माध्यम से भुतान करें',
+                'checkout_razorpay': 'ऑनलाइन भुगतान (Razorpay - कार्ड/UPI)',
+                'checkout_upi': 'सीधे UPI द्वारा भुगतान',
                 'checkout_cod': 'नगद डिलीवरी (COD)',
                 'checkout_place_order': 'ऑर्डर दें',
                 'checkout_upi_instructions': 'QR कोड स्कैन करें या UPI के माध्यम से भुगतान करें',
@@ -800,6 +808,73 @@
             }
 
             try {
+                // If payment method is Razorpay, initiate Razorpay order and checkout popup
+                if (paymentMethod === 'razorpay') {
+                    const rzpRes = await authFetch('/api/razorpay/create-order', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: name,
+                            phone: phone,
+                            address: address,
+                            coupon_code: appliedCoupon ? appliedCoupon.code : ''
+                        })
+                    });
+                    const rzpData = await rzpRes.json();
+                    if (!rzpRes.ok) throw new Error(rzpData.error || 'Failed to initialize Razorpay payment');
+
+                    const options = {
+                        "key": rzpData.key_id,
+                        "amount": rzpData.amount,
+                        "currency": rzpData.currency || "INR",
+                        "name": "Jainzee Food Processing Industries",
+                        "description": "Premium Dry Fruits Order",
+                        "image": "/static/images/logo.png",
+                        "order_id": rzpData.order_id,
+                        "handler": async function (rzpResponse) {
+                            try {
+                                const verifyRes = await authFetch('/api/checkout', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        name: name,
+                                        phone: phone,
+                                        address: address,
+                                        payment_method: 'razorpay',
+                                        coupon_code: appliedCoupon ? appliedCoupon.code : '',
+                                        razorpay_order_id: rzpResponse.razorpay_order_id,
+                                        razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                                        razorpay_signature: rzpResponse.razorpay_signature
+                                    })
+                                });
+                                const vData = await verifyRes.json();
+                                if (!verifyRes.ok) throw new Error(vData.error || 'Payment recorded, but checkout failed');
+
+                                sessionStorage.removeItem('jainzee_applied_coupon');
+                                document.getElementById('checkoutContent').style.display = 'none';
+                                document.getElementById('successOrderId').textContent = vData.order_id;
+                                document.getElementById('checkoutSuccess').style.display = '';
+                            } catch (err) {
+                                alert('Order Verification Error: ' + err.message);
+                            }
+                        },
+                        "prefill": {
+                            "name": name,
+                            "contact": phone
+                        },
+                        "theme": {
+                            "color": "#15803d"
+                        }
+                    };
+                    const rzp1 = new Razorpay(options);
+                    rzp1.on('payment.failed', function (resp) {
+                        alert('Payment Failed: ' + (resp.error ? resp.error.description : 'Transaction was declined'));
+                    });
+                    rzp1.open();
+                    return;
+                }
+
+                // COD or UPI
                 const res = await authFetch('/api/checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

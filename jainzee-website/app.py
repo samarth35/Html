@@ -4,6 +4,14 @@ import json
 import time
 import secrets
 import sqlite3
+import base64
+import hmac
+import hashlib
+import smtplib
+import urllib.request
+import urllib.parse
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import timedelta, datetime, date
 from functools import wraps
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash, send_from_directory, g
@@ -320,6 +328,158 @@ class _PostgresCursor:
         return rc if rc is not None else -1
 
 
+
+def get_config_setting(key, default=''):
+    """Fetch setting from DB first, then fallback to environment variables."""
+    try:
+        conn = get_db()
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        conn.close()
+        if row and str(row['value'] or '').strip():
+            return str(row['value']).strip()
+    except Exception:
+        pass
+    env_val = os.environ.get(key.upper()) or os.environ.get(key)
+    if env_val and str(env_val).strip():
+        return str(env_val).strip()
+    return default
+
+
+def send_twilio_verify_otp(phone_number):
+    """Send OTP via Twilio Verify Service."""
+    sid = get_config_setting('twilio_account_sid', os.environ.get('TWILIO_ACCOUNT_SID', ''))
+    token = get_config_setting('twilio_auth_token', os.environ.get('TWILIO_AUTH_TOKEN', ''))
+    service_sid = get_config_setting('twilio_verify_service_sid', os.environ.get('TWILIO_VERIFY_SERVICE_SID', ''))
+
+    if not sid or not token or not service_sid:
+        return False, "Twilio Verify not configured"
+
+    clean_digits = re.sub(r'\D', '', phone_number)
+    if len(clean_digits) == 10:
+        formatted = f"+91{clean_digits}"
+    elif len(clean_digits) == 12 and clean_digits.startswith('91'):
+        formatted = f"+{clean_digits}"
+    elif phone_number.strip().startswith('+'):
+        formatted = phone_number.strip()
+    else:
+        formatted = f"+{clean_digits}"
+
+    url = f"https://verify.twilio.com/v2/Services/{service_sid}/Verifications"
+    auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
+    payload = urllib.parse.urlencode({'To': formatted, 'Channel': 'sms'}).encode()
+    req = urllib.request.Request(url, data=payload, headers={
+        'Authorization': f'Basic {auth}',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res_data = json.loads(resp.read().decode())
+            return True, res_data.get('status', 'pending')
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode()
+        print(f"[TWILIO ERROR {e.code}] {err_msg}")
+        try:
+            err_json = json.loads(err_msg)
+            return False, err_json.get('message', f"Twilio error {e.code}")
+        except Exception:
+            return False, f"Twilio HTTP {e.code}"
+    except Exception as e:
+        print(f"[TWILIO EXCEPTION] {e}")
+        return False, str(e)
+
+
+def check_twilio_verify_otp(phone_number, code):
+    """Verify OTP via Twilio Verify Service."""
+    sid = get_config_setting('twilio_account_sid', os.environ.get('TWILIO_ACCOUNT_SID', ''))
+    token = get_config_setting('twilio_auth_token', os.environ.get('TWILIO_AUTH_TOKEN', ''))
+    service_sid = get_config_setting('twilio_verify_service_sid', os.environ.get('TWILIO_VERIFY_SERVICE_SID', ''))
+
+    if not sid or not token or not service_sid:
+        return False, "Twilio Verify not configured"
+
+    clean_digits = re.sub(r'\D', '', phone_number)
+    if len(clean_digits) == 10:
+        formatted = f"+91{clean_digits}"
+    elif len(clean_digits) == 12 and clean_digits.startswith('91'):
+        formatted = f"+{clean_digits}"
+    elif phone_number.strip().startswith('+'):
+        formatted = phone_number.strip()
+    else:
+        formatted = f"+{clean_digits}"
+
+    url = f"https://verify.twilio.com/v2/Services/{service_sid}/VerificationCheck"
+    auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
+    payload = urllib.parse.urlencode({'To': formatted, 'Code': code.strip()}).encode()
+    req = urllib.request.Request(url, data=payload, headers={
+        'Authorization': f'Basic {auth}',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            res_data = json.loads(resp.read().decode())
+            if res_data.get('status') == 'approved':
+                return True, "approved"
+            return False, res_data.get('status', 'invalid')
+    except Exception as e:
+        print(f"[TWILIO CHECK EXCEPTION] {e}")
+        return False, str(e)
+
+
+def send_email_otp(recipient_email, otp_code):
+    """Send OTP to customer's email address via SMTP."""
+    host = get_config_setting('smtp_host', 'smtp.gmail.com')
+    port = int(get_config_setting('smtp_port', '587'))
+    user = get_config_setting('smtp_user', 'info@jainzee.in')
+    password = get_config_setting('smtp_pass', '')
+    sender = get_config_setting('smtp_from', user)
+
+    print(f"[EMAIL OTP] Verification Code for {recipient_email}: {otp_code} (valid 10 mins)")
+
+    if not password:
+        return False, "SMTP password not configured. Code logged to server console."
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"{otp_code} is your Jainzee Dry Fruits login verification code"
+        msg['From'] = f"Jainzee Dry Fruits <{sender}>"
+        msg['To'] = recipient_email
+
+        html_body = f"""
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 520px; margin: 0 auto; padding: 25px; border: 1px solid #e8e0d5; border-radius: 14px; background: #fffcf7;">
+            <div style="text-align: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #e8e0d5;">
+                <h2 style="color: #15803d; margin: 0; font-size: 1.6rem; letter-spacing: 0.5px;">Jainzee Food Processing Industries</h2>
+                <p style="color: #8a7362; margin: 5px 0 0 0; font-size: 0.92rem;">Pure & Premium Dry Fruits • Siyaganj, Indore</p>
+            </div>
+            <div style="background: #ffffff; padding: 25px; border-radius: 12px; border: 1px solid #f0e6d6; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                <p style="color: #2b2b2b; font-size: 1.05rem; font-weight: 600; margin-top: 0;">Login Verification Code</p>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 15px;">Use the 6-digit one-time password below to complete your login:</p>
+                <div style="font-size: 2.4rem; font-weight: 800; letter-spacing: 8px; color: #15803d; margin: 15px 0; padding: 14px; background: #f0fdf4; border: 2px dashed #22c55e; border-radius: 10px;">
+                    {otp_code}
+                </div>
+                <p style="color: #888; font-size: 0.85rem; margin-bottom: 0;">
+                    ⏱️ Valid for <strong>10 minutes</strong>. Never share this code with anyone.
+                </p>
+            </div>
+            <p style="text-align: center; color: #999; font-size: 0.78rem; margin-top: 22px;">
+                If you did not request this OTP, you can safely ignore this email.
+            </p>
+        </div>
+        """
+        msg.attach(MIMEText(html_body, 'html'))
+
+        server = smtplib.SMTP(host, port, timeout=12)
+        server.ehlo()
+        if port == 587:
+            server.starttls()
+            server.ehlo()
+        server.login(user, password)
+        server.sendmail(sender, [recipient_email], msg.as_string())
+        server.quit()
+        return True, "Email sent successfully"
+    except Exception as e:
+        print(f"[EMAIL OTP ERROR] {e}")
+        return False, str(e)
+
 def get_db():
     if USE_POSTGRES:
         import psycopg2
@@ -440,6 +600,10 @@ def init_db():
         'discount_amount': "TEXT DEFAULT ''",
         'shipping_charge': "TEXT DEFAULT '0'",
         'coupon_code': "TEXT DEFAULT ''",
+        'payment_method': "TEXT DEFAULT 'cod'",
+        'razorpay_order_id': "TEXT DEFAULT ''",
+        'razorpay_payment_id': "TEXT DEFAULT ''",
+        'razorpay_signature': "TEXT DEFAULT ''",
     }
     for col, col_def in order_migration_cols.items():
         if col not in order_cols:
@@ -526,7 +690,17 @@ def init_db():
         'homepage_video_url': '',
         'global_discount_percent': '0',
         'shipping_charge': '50',
-        'free_shipping_min': '1000'
+        'free_shipping_min': '1000',
+        'razorpay_key_id': '',
+        'razorpay_key_secret': '',
+        'twilio_account_sid': os.environ.get('TWILIO_ACCOUNT_SID', ''),
+        'twilio_auth_token': os.environ.get('TWILIO_AUTH_TOKEN', ''),
+        'twilio_verify_service_sid': os.environ.get('TWILIO_VERIFY_SERVICE_SID', ''),
+        'smtp_host': 'smtp.gmail.com',
+        'smtp_port': '587',
+        'smtp_user': 'info@jainzee.in',
+        'smtp_pass': '',
+        'smtp_from': 'info@jainzee.in'
     }
     for k, v in default_settings.items():
         cur.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
@@ -555,11 +729,19 @@ def init_db():
     # Customer OTP login table
     cur.execute('''CREATE TABLE IF NOT EXISTS customer_otps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        phone VARCHAR(20) NOT NULL,
+        phone VARCHAR(20) DEFAULT '',
+        email VARCHAR(120) DEFAULT '',
         otp VARCHAR(6) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         expires_at TIMESTAMP NOT NULL
     )''')
+    cur.execute("PRAGMA table_info(customer_otps)")
+    otp_cols = [(row['name'] if isinstance(row, dict) else row[1]) for row in cur.fetchall()]
+    if 'email' not in otp_cols:
+        try:
+            cur.execute("ALTER TABLE customer_otps ADD COLUMN email VARCHAR(120) DEFAULT ''")
+        except Exception:
+            pass
 
     # Migration: clean up customers.phone/email empty strings -> NULL. This lets
     # PostgreSQL store NULL instead of '', avoiding the UNIQUE-collision 'duplicate
@@ -581,6 +763,26 @@ def init_db():
         cur.execute('ALTER TABLE customers ALTER COLUMN phone DROP NOT NULL')
     except Exception:
         pass
+
+    if not USE_POSTGRES:
+        try:
+            info = cur.execute('PRAGMA table_info(customers)').fetchall()
+            p_col = [r for r in info if (r['name'] if isinstance(r, dict) else r[1]) == 'phone']
+            if p_col and (p_col[0]['notnull'] if isinstance(p_col[0], dict) else p_col[0][3]) == 1:
+                cur.execute("""CREATE TABLE IF NOT EXISTS customers_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    phone TEXT UNIQUE,
+                    email TEXT,
+                    address TEXT DEFAULT '',
+                    password_hash TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )""")
+                cur.execute('INSERT INTO customers_new SELECT id, name, phone, email, address, password_hash, created_at FROM customers')
+                cur.execute('DROP TABLE customers')
+                cur.execute('ALTER TABLE customers_new RENAME TO customers')
+        except Exception:
+            pass
 
     conn.commit()
     conn.close()
@@ -910,7 +1112,7 @@ PUBLIC_SETTINGS_KEYS = {
     'address_en', 'address_hi', 'phone', 'whatsapp', 'email',
     'hours_en', 'hours_hi', 'about_en', 'about_hi', 'logo',
     'upi_id', 'upi_qr_data', 'homepage_video_url',
-    'shipping_charge', 'free_shipping_min',
+    'shipping_charge', 'free_shipping_min', 'razorpay_key_id',
 }
 
 @app.route('/api/site')
@@ -1111,66 +1313,139 @@ def api_customer_send_otp():
     if not rate_limit_ok('send_otp'):
         return jsonify({'error': 'Too many attempts. Please wait 5 minutes and try again.'}), 429
     data = request.get_json() or {}
-    phone = data.get('phone', '').strip()
-    if not phone:
-        return jsonify({'error': 'Phone number is required'}), 400
+    identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
+    if not identifier:
+        return jsonify({'error': 'Phone number or email is required'}), 400
+
     import random
+    is_email = '@' in identifier
     if os.environ.get('OTP_DEBUG', '').strip().lower() in ('1', 'true', 'yes'):
         otp = '123456'
     else:
-        otp = f"{random.randint(0, 999999):06d}"
-    print(f"[OTP] Login OTP for {phone}: {otp} (valid to 10 minutes)")
+        otp = f"{random.randint(100000, 999999):06d}"
+
     expires_at = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
     conn = get_db()
-    conn.execute(
-        'INSERT INTO customer_otps (phone, otp, expires_at) VALUES (?, ?, ?)',
-        (phone, otp, expires_at)
-    )
-    conn.commit()
-    conn.close()
-    # NOTE: otp_for_debug is intentionally omitted in production to avoid
-    # leaking the OTP over the network. The OTP is printed to server logs
-    # above (visible only to operators) for debugging without OTP gateway.
-    response_data = {'success': True, 'message': 'OTP sent. Please check the server logs.'}
-    if os.environ.get('OTP_DEBUG', '').strip().lower() in ('1', 'true', 'yes'):
-        response_data['otp_for_debug'] = otp
-    return jsonify(response_data)
+
+    if is_email:
+        email = identifier.lower().strip()
+        print(f"[OTP] Login OTP for email {email}: {otp}")
+        conn.execute(
+            'INSERT INTO customer_otps (email, phone, otp, expires_at) VALUES (?, ?, ?, ?)',
+            (email, '', otp, expires_at)
+        )
+        conn.commit()
+        conn.close()
+        sent_ok, msg = send_email_otp(email, otp)
+        resp_msg = f'OTP sent successfully to {email}' if sent_ok else f'OTP generated: {msg}'
+        response_data = {'success': True, 'channel': 'email', 'message': resp_msg}
+        if os.environ.get('OTP_DEBUG', '').strip().lower() in ('1', 'true', 'yes'):
+            response_data['otp_for_debug'] = otp
+        return jsonify(response_data)
+    else:
+        phone = identifier
+        print(f"[OTP] Login OTP for phone {phone}: {otp}")
+        conn.execute(
+            'INSERT INTO customer_otps (phone, email, otp, expires_at) VALUES (?, ?, ?, ?)',
+            (phone, '', otp, expires_at)
+        )
+        conn.commit()
+        conn.close()
+        twilio_ok, twilio_status = send_twilio_verify_otp(phone)
+        channel = 'sms' if twilio_ok else 'sms_fallback'
+        resp_msg = f'OTP sent via SMS to {phone}' if twilio_ok else f'OTP sent. (Verification ready)'
+        response_data = {'success': True, 'channel': channel, 'message': resp_msg}
+        if os.environ.get('OTP_DEBUG', '').strip().lower() in ('1', 'true', 'yes'):
+            response_data['otp_for_debug'] = otp
+        return jsonify(response_data)
 
 
 @app.route('/api/customer/verify-otp', methods=['POST'])
 def api_customer_verify_otp():
     if not rate_limit_ok('verify_otp'):
-        return jsonify({'error': 'Too many attempts.Please wait 5 minutes and try again.'}), 429
+        return jsonify({'error': 'Too many attempts. Please wait 5 minutes and try again.'}), 429
     data = request.get_json() or {}
-    phone = data.get('phone', '').strip()
+    identifier = (data.get('identifier') or data.get('phone') or data.get('email') or '').strip()
     otp_value = data.get('otp', '').strip()
-    if not phone or not otp_value:
-        return jsonify({'error': 'Phone and OTP are required'}), 400
+    if not identifier or not otp_value:
+        return jsonify({'error': 'Phone/Email and OTP are required'}), 400
+
+    is_email = '@' in identifier
+    is_valid = False
+    now_iso = datetime.utcnow().isoformat()
     conn = get_db()
-    row = conn.execute(
-        'SELECT * FROM customer_otps WHERE phone=? AND otp=? AND expires_at > ? '
-        'ORDER BY id DESC LIMIT 1',
-        (phone, otp_value, datetime.utcnow().isoformat())
-    ).fetchone()
-    if not row:
+    otp_row_id = None
+
+    if not is_email:
+        phone = identifier
+        # 1. Try Twilio Verify Check first
+        tw_ok, _ = check_twilio_verify_otp(phone, otp_value)
+        if tw_ok:
+            is_valid = True
+        else:
+            # 2. Check local fallback OTP
+            row = conn.execute(
+                'SELECT * FROM customer_otps WHERE phone=? AND otp=? AND expires_at > ? ORDER BY id DESC LIMIT 1',
+                (phone, otp_value, now_iso)
+            ).fetchone()
+            if row:
+                is_valid = True
+                otp_row_id = row['id']
+    else:
+        email = identifier.lower().strip()
+        row = conn.execute(
+            'SELECT * FROM customer_otps WHERE email=? AND otp=? AND expires_at > ? ORDER BY id DESC LIMIT 1',
+            (email, otp_value, now_iso)
+        ).fetchone()
+        if row:
+            is_valid = True
+            otp_row_id = row['id']
+
+    if not is_valid:
         conn.close()
         return jsonify({'error': 'Invalid or expired OTP'}), 400
-    conn.execute('DELETE FROM customer_otps WHERE id=?', (row['id'],))
-    conn.commit()
-    customer = conn.execute('SELECT * FROM customers WHERE phone=?', (phone,)).fetchone()
-    if not customer:
-        cur = conn.execute(
-            'INSERT INTO customers (name, phone, password_hash) VALUES (?, ?, ?)',
-            (f'Customer {phone}', phone, generate_password_hash(secrets.token_urlsafe(12)))
-        )
+
+    if otp_row_id:
+        conn.execute('DELETE FROM customer_otps WHERE id=?', (otp_row_id,))
         conn.commit()
-        customer = {'id': cur.lastrowid, 'name': f'Customer {phone}', 'phone': phone}
+
+    if not is_email:
+        phone = identifier
+        customer = conn.execute('SELECT * FROM customers WHERE phone=?', (phone,)).fetchone()
+        if not customer:
+            cur = conn.execute(
+                'INSERT INTO customers (name, phone, password_hash) VALUES (?, ?, ?)',
+                (f'Customer {phone[-4:] if len(phone)>=4 else phone}', phone, generate_password_hash(secrets.token_urlsafe(12)))
+            )
+            conn.commit()
+            customer = {'id': cur.lastrowid, 'name': f'Customer {phone[-4:] if len(phone)>=4 else phone}', 'phone': phone, 'email': ''}
+    else:
+        email = identifier.lower().strip()
+        customer = conn.execute('SELECT * FROM customers WHERE email=?', (email,)).fetchone()
+        if not customer:
+            default_name = email.split('@')[0].capitalize()
+            cur = conn.execute(
+                'INSERT INTO customers (name, email, password_hash) VALUES (?, ?, ?)',
+                (default_name, email, generate_password_hash(secrets.token_urlsafe(12)))
+            )
+            conn.commit()
+            customer = {'id': cur.lastrowid, 'name': default_name, 'phone': '', 'email': email}
+
     session.permanent = True
     session['customer_id'] = customer['id']
     session['customer_name'] = customer['name']
     conn.close()
     token = generate_jwt_token(customer['id'], customer['name'])
-    return jsonify({'success': True, 'customer': {'id': customer['id'], 'name': customer['name'], 'phone': phone}, 'token': token})
+    return jsonify({
+        'success': True,
+        'customer': {
+            'id': customer['id'],
+            'name': customer['name'],
+            'phone': customer.get('phone', '') if isinstance(customer, dict) else '',
+            'email': customer.get('email', '') if isinstance(customer, dict) else ''
+        },
+        'token': token
+    })
 
 
 # ---------------- GOOGLE OAUTH =================
@@ -1963,7 +2238,10 @@ def admin_api_site():
                                  'hours_en', 'hours_hi', 'about_en', 'about_hi', 'logo',
                                  'global_discount', 'global_discount_percent', 'upi_id',
                                  'homepage_video_url', 'gstin', 'tax_percent',
-                                 'shipping_charge', 'free_shipping_min']
+                                 'shipping_charge', 'free_shipping_min',
+                                 'razorpay_key_id', 'razorpay_key_secret',
+                                 'twilio_account_sid', 'twilio_auth_token', 'twilio_verify_service_sid',
+                                 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from']
                 for key in editable_keys:
                     if key in data:
                         # Use INSERT OR REPLACE to ensure persistence even for new keys
@@ -2712,13 +2990,148 @@ def api_cart_count():
     cart = session.get('cart', [])
     return jsonify({'count': sum(i['quantity'] for i in cart)})
 
+
+# ---------------- RAZORPAY INTEGRATION ----------------
+
+@app.route('/api/razorpay/create-order', methods=['POST'])
+def api_razorpay_create_order():
+    """Create a Razorpay order for online payment."""
+    key_id = get_config_setting('razorpay_key_id')
+    key_secret = get_config_setting('razorpay_key_secret')
+    if not key_id or not key_secret:
+        return jsonify({'error': 'Razorpay payment gateway is not configured yet. Please configure Key ID and Secret in Admin Settings.'}), 400
+
+    data = request.get_json() or {}
+    cart = session.get('cart', [])
+    if not cart:
+        return jsonify({'error': 'Cart is empty'}), 400
+
+    conn = get_db()
+    import json as json_mod
+    subtotal = 0.0
+    for item in cart:
+        row = conn.execute('SELECT * FROM products WHERE id=?', (item['product_id'],)).fetchone()
+        if row:
+            grades = []
+            try: grades = json_mod.loads(row['grades'] or '[]')
+            except: pass
+            grade_idx = item.get('grade_index', 0)
+            grade_price_str = grades[grade_idx]['price'] if grades and grade_idx < len(grades) else row['price']
+            base_price_str = row['price']
+            grade_price = float(re.sub(r'[₹,\s]', '', str(grade_price_str)) or 0)
+            base_price = float(re.sub(r'[₹,\s]', '', str(base_price_str)) or 0)
+            item_price = grade_price if grade_price > 0 else base_price
+            qty = int(item.get('quantity', 1))
+            subtotal += item_price * qty
+
+    global_discount_percent = 0.0
+    try:
+        global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount_percent'").fetchone()
+        if global_discount_row is None or not str(global_discount_row['value'] or '').strip():
+            global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount'").fetchone()
+        if global_discount_row and str(global_discount_row['value'] or '').strip():
+            global_discount_percent = float(str(global_discount_row['value']).replace('%', '').strip()) or 0.0
+    except (ValueError, TypeError):
+        pass
+
+    global_discount_amount = (subtotal * global_discount_percent) / 100.0
+
+    coupon_code = str(data.get('coupon_code', '') or '').strip().upper()
+    coupon_discount = 0.0
+    if coupon_code:
+        coupon_row = conn.execute('SELECT * FROM coupons WHERE code=?', (coupon_code,)).fetchone()
+        if coupon_row and coupon_row['is_active']:
+            min_amount = float(re.sub(r'[₹,\s]', '', str(coupon_row['min_order_amount'] or '0')) or 0)
+            if subtotal >= min_amount:
+                if coupon_row['discount_type'] == 'flat':
+                    coupon_discount = min(float(re.sub(r'[₹,\s]', '', str(coupon_row['discount_value'])) or 0), subtotal)
+                else:
+                    coupon_discount = min(subtotal * (float(str(coupon_row['discount_value']).replace('%', '').strip() or 0) / 100.0), subtotal)
+
+    shipping_charge = 0.0
+    free_shipping_min = 0.0
+    try:
+        ship_row = conn.execute("SELECT value FROM settings WHERE key='shipping_charge'").fetchone()
+        shipping_charge = float(re.sub(r'[₹,\s]', '', str(ship_row['value'] or '0')) or 0) if ship_row else 0.0
+        free_min_row = conn.execute("SELECT value FROM settings WHERE key='free_shipping_min'").fetchone()
+        free_shipping_min = float(re.sub(r'[₹,\s]', '', str(free_min_row['value'] or '0')) or 0) if free_min_row else 0.0
+    except Exception:
+        pass
+
+    conn.close()
+
+    amount_before_shipping = subtotal - global_discount_amount - coupon_discount
+    if shipping_charge > 0 and free_shipping_min > 0 and amount_before_shipping >= free_shipping_min:
+        shipping_charge = 0.0
+
+    final_total = max(0.0, subtotal - global_discount_amount - coupon_discount + shipping_charge)
+    amount_in_paise = int(round(final_total * 100))
+
+    if amount_in_paise <= 0:
+        return jsonify({'error': 'Total order amount must be greater than zero.'}), 400
+
+    url = "https://api.razorpay.com/v1/orders"
+    auth = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
+    order_payload = json.dumps({
+        'amount': amount_in_paise,
+        'currency': 'INR',
+        'receipt': f"jz_{int(time.time())}",
+        'notes': {
+            'customer_name': data.get('name', ''),
+            'customer_phone': data.get('phone', '')
+        }
+    }).encode('utf-8')
+
+    req = urllib.request.Request(url, data=order_payload, headers={
+        'Authorization': f'Basic {auth}',
+        'Content-Type': 'application/json'
+    })
+
+    try:
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            rzp_order = json.loads(resp.read().decode())
+            return jsonify({
+                'success': True,
+                'key_id': key_id,
+                'order_id': rzp_order['id'],
+                'amount': rzp_order['amount'],
+                'currency': rzp_order.get('currency', 'INR')
+            })
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode()
+        print(f"[RAZORPAY ERROR {e.code}] {err_msg}")
+        try:
+            err_json = json.loads(err_msg)
+            return jsonify({'error': err_json.get('error', {}).get('description', f"Razorpay error {e.code}")}), 400
+        except Exception:
+            return jsonify({'error': f"Razorpay error: {err_msg}"}), 400
+    except Exception as e:
+        print(f"[RAZORPAY EXCEPTION] {e}")
+        return jsonify({'error': f"Failed to connect to Razorpay: {str(e)}"}), 500
+
 @app.route('/api/checkout', methods=['POST'])
 def api_checkout():
     data = request.get_json() or {}
     payment_method = str(data.get('payment_method', 'cod')).lower().strip()
-    # SECURITY/BUSINESS RULE: only COD and UPI payments are accepted
-    if payment_method not in ('cod', 'upi'):
-        return jsonify({'error': 'Invalid payment method. Only COD and UPI are accepted.'}), 400
+    if payment_method not in ('cod', 'upi', 'razorpay'):
+        return jsonify({'error': 'Invalid payment method. Only COD, UPI, and Razorpay are accepted.'}), 400
+
+    razorpay_order_id = str(data.get('razorpay_order_id', '')).strip()
+    razorpay_payment_id = str(data.get('razorpay_payment_id', '')).strip()
+    razorpay_signature = str(data.get('razorpay_signature', '')).strip()
+
+    if payment_method == 'razorpay':
+        if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+            return jsonify({'error': 'Missing Razorpay payment verification details.'}), 400
+        key_secret = get_config_setting('razorpay_key_secret')
+        if key_secret:
+            expected_sig = hmac.new(
+                key_secret.encode('utf-8'),
+                f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            if not hmac.compare_digest(expected_sig, razorpay_signature):
+                return jsonify({'error': 'Payment verification failed: invalid signature.'}), 400
     customer_name = data.get('name', '')
     customer_phone = data.get('phone', '')
     customer_address = data.get('address', '')
@@ -2851,16 +3264,18 @@ def api_checkout():
     if final_total < 0:
         final_total = 0
     
+    order_status = 'paid_razorpay' if payment_method == 'razorpay' else ('pending_' + payment_method)
     cur = conn.execute(
-        'INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, items, total, status, subtotal, discount_amount, shipping_charge, coupon_code) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, items, total, status, subtotal, discount_amount, shipping_charge, coupon_code, payment_method, razorpay_order_id, razorpay_payment_id, razorpay_signature) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         (
             session.get('customer_id') or (get_jwt_customer()[0]),
             customer_name, customer_phone, customer_address,
             json_mod.dumps(order_items_snapshot),
-            '₹' + str(round(final_total, 2)), 'pending_' + payment_method,
+            '₹' + str(round(final_total, 2)), order_status,
             str(round(subtotal, 2)), str(round(total_discount, 2)),
-            str(round(shipping_charge, 2)), coupon_code
+            str(round(shipping_charge, 2)), coupon_code,
+            payment_method, razorpay_order_id, razorpay_payment_id, razorpay_signature
         )
     )
     

@@ -733,6 +733,18 @@ function applySettings(result) {
     setVal('sShippingCharge', data.shipping_charge || '50');
     setVal('sFreeShippingMin', data.free_shipping_min || '1000');
 
+    // Gateway & OTP settings
+    setVal('sRazorpayKeyId', data.razorpay_key_id || '');
+    setVal('sRazorpayKeySecret', data.razorpay_key_secret || '');
+    setVal('sTwilioAccountSid', data.twilio_account_sid || '');
+    setVal('sTwilioAuthToken', data.twilio_auth_token || '');
+    setVal('sTwilioVerifyServiceSid', data.twilio_verify_service_sid || '');
+    setVal('sSmtpHost', data.smtp_host || 'smtp.gmail.com');
+    setVal('sSmtpPort', data.smtp_port || '587');
+    setVal('sSmtpUser', data.smtp_user || 'info@jainzee.in');
+    setVal('sSmtpPass', data.smtp_pass || '');
+    setVal('sSmtpFrom', data.smtp_from || 'info@jainzee.in');
+
     // UPI QR Code preview (Base64 permanent storage)
     if (data.upi_qr_data) {
         const qrPreview = document.getElementById('upiQrPreview');
@@ -779,7 +791,17 @@ async function saveSettings(btn = null) {
         gstin: document.getElementById('sGstin') ? document.getElementById('sGstin').value.trim() : '',
         tax_percent: document.getElementById('sTaxPercent') ? document.getElementById('sTaxPercent').value.trim() : '',
         shipping_charge: document.getElementById('sShippingCharge') ? document.getElementById('sShippingCharge').value.trim() : '50',
-        free_shipping_min: document.getElementById('sFreeShippingMin') ? document.getElementById('sFreeShippingMin').value.trim() : '1000'
+        free_shipping_min: document.getElementById('sFreeShippingMin') ? document.getElementById('sFreeShippingMin').value.trim() : '1000',
+        razorpay_key_id: document.getElementById('sRazorpayKeyId') ? document.getElementById('sRazorpayKeyId').value.trim() : '',
+        razorpay_key_secret: document.getElementById('sRazorpayKeySecret') ? document.getElementById('sRazorpayKeySecret').value.trim() : '',
+        twilio_account_sid: document.getElementById('sTwilioAccountSid') ? document.getElementById('sTwilioAccountSid').value.trim() : '',
+        twilio_auth_token: document.getElementById('sTwilioAuthToken') ? document.getElementById('sTwilioAuthToken').value.trim() : '',
+        twilio_verify_service_sid: document.getElementById('sTwilioVerifyServiceSid') ? document.getElementById('sTwilioVerifyServiceSid').value.trim() : '',
+        smtp_host: document.getElementById('sSmtpHost') ? document.getElementById('sSmtpHost').value.trim() : 'smtp.gmail.com',
+        smtp_port: document.getElementById('sSmtpPort') ? document.getElementById('sSmtpPort').value.trim() : '587',
+        smtp_user: document.getElementById('sSmtpUser') ? document.getElementById('sSmtpUser').value.trim() : 'info@jainzee.in',
+        smtp_pass: document.getElementById('sSmtpPass') ? document.getElementById('sSmtpPass').value.trim() : '',
+        smtp_from: document.getElementById('sSmtpFrom') ? document.getElementById('sSmtpFrom').value.trim() : 'info@jainzee.in'
     };
 
     const formData = new FormData();

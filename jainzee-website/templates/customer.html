@@ -116,9 +116,10 @@
         <div class="auth-section" id="authSection">
             <div class="auth-card">
                 <h2><i class="fas fa-user-circle"></i> Customer Login</h2>
-                <div class="auth-tabs">
-                    <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
-                    <button class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+                <div class="auth-tabs" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <button class="auth-tab active" onclick="switchAuthTab('login')"><i class="fas fa-key"></i> Password</button>
+                    <button class="auth-tab" onclick="switchAuthTab('otp')"><i class="fas fa-shield-alt"></i> OTP Login</button>
+                    <button class="auth-tab" onclick="switchAuthTab('register')"><i class="fas fa-user-plus"></i> Register</button>
                 </div>
 
                 <!-- Login Form -->
@@ -151,6 +152,43 @@
                         </svg>
                         Sign in with Google
                     </button>
+                </div>
+
+                                <!-- OTP Login Form -->
+                <div class="auth-form" id="otpForm">
+                    <div id="otpStep1">
+                        <div class="form-group">
+                            <label><i class="fas fa-mobile-alt"></i> Mobile Number or Email</label>
+                            <input type="text" id="otpIdentifier" placeholder="Enter 10-digit mobile or email address" onkeydown="if(event.key==='Enter') requestOtp()">
+                            <small style="color: #8a7362; font-size: 0.78rem; display: block; margin-top: 4px;">
+                                SMS will be sent to your mobile or verification code to your email.
+                            </small>
+                        </div>
+                        <button class="btn btn-primary btn-block" id="btnSendOtp" onclick="requestOtp()">
+                            <i class="fas fa-paper-plane"></i> Send OTP
+                        </button>
+                    </div>
+
+                    <div id="otpStep2" style="display: none;">
+                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #166534;">
+                            <i class="fas fa-check-circle"></i> <span id="otpSentNotice">OTP sent!</span>
+                            <div style="font-size: 0.78rem; color: #15803d; margin-top: 3px;">
+                                <a href="javascript:void(0)" onclick="resetOtpStep()" style="color: #15803d; text-decoration: underline;">Change number/email</a>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Enter 6-Digit OTP</label>
+                            <input type="text" id="otpInputCode" maxlength="6" placeholder="• • • • • •" style="letter-spacing: 6px; font-size: 1.3rem; font-weight: bold; text-align: center;" onkeydown="if(event.key==='Enter') verifyOtpAndLogin()">
+                        </div>
+                        <button class="btn btn-success btn-block" id="btnVerifyOtp" onclick="verifyOtpAndLogin()">
+                            <i class="fas fa-check-circle"></i> Verify &amp; Login
+                        </button>
+                        <div style="text-align: center; margin-top: 15px;">
+                            <button id="resendOtpBtn" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px;" onclick="requestOtp()" disabled>
+                                Resend OTP in <span id="otpTimer">60</span>s
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Register Form (simplified: only 3 mandatory fields) -->
@@ -235,12 +273,125 @@
         function switchAuthTab(tab) {
             document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            const tabs = document.querySelectorAll('.auth-tab');
             if (tab === 'login') {
-                document.querySelectorAll('.auth-tab')[0].classList.add('active');
+                if (tabs[0]) tabs[0].classList.add('active');
                 document.getElementById('loginForm').classList.add('active');
+            } else if (tab === 'otp') {
+                if (tabs[1]) tabs[1].classList.add('active');
+                document.getElementById('otpForm').classList.add('active');
             } else {
-                document.querySelectorAll('.auth-tab')[1].classList.add('active');
+                if (tabs[2]) tabs[2].classList.add('active');
                 document.getElementById('registerForm').classList.add('active');
+            }
+        }
+
+        // ==================== OTP AUTH LOGIC ====================
+        let otpCountdown = 60;
+        let otpTimerInterval = null;
+
+        function resetOtpStep() {
+            clearInterval(otpTimerInterval);
+            document.getElementById('otpStep1').style.display = 'block';
+            document.getElementById('otpStep2').style.display = 'none';
+            const btn = document.getElementById('btnSendOtp');
+            if (btn) btn.disabled = false;
+        }
+
+        function startOtpTimer() {
+            clearInterval(otpTimerInterval);
+            otpCountdown = 60;
+            const resendBtn = document.getElementById('resendOtpBtn');
+            resendBtn.disabled = true;
+            resendBtn.innerHTML = 'Resend OTP in <span id="otpTimer">60</span>s';
+            otpTimerInterval = setInterval(() => {
+                otpCountdown--;
+                const curTimer = document.getElementById('otpTimer');
+                if (curTimer) curTimer.textContent = otpCountdown;
+                if (otpCountdown <= 0) {
+                    clearInterval(otpTimerInterval);
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = '<i class="fas fa-redo"></i> Resend OTP';
+                }
+            }, 1000);
+        }
+
+        async function requestOtp() {
+            const ident = document.getElementById('otpIdentifier').value.trim();
+            if (!ident) {
+                showToast('Please enter your mobile number or email!', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnSendOtp');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending OTP...';
+            }
+            try {
+                const res = await fetch('/api/customer/send-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: ident })
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Failed to send OTP');
+
+                document.getElementById('otpStep1').style.display = 'none';
+                document.getElementById('otpStep2').style.display = 'block';
+                document.getElementById('otpSentNotice').textContent = result.message || 'OTP sent successfully!';
+                document.getElementById('otpInputCode').value = '';
+                document.getElementById('otpInputCode').focus();
+                startOtpTimer();
+                showToast('OTP sent successfully!');
+            } catch (e) {
+                showToast(e.message, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP';
+                }
+            }
+        }
+
+        async function verifyOtpAndLogin() {
+            const ident = document.getElementById('otpIdentifier').value.trim();
+            const otp = document.getElementById('otpInputCode').value.trim();
+            if (!ident || !otp) {
+                showToast('Please enter the 6-digit OTP!', 'error');
+                return;
+            }
+            const btn = document.getElementById('btnVerifyOtp');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            }
+            try {
+                const res = await fetch('/api/customer/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: ident, otp: otp })
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || 'Invalid or expired OTP');
+
+                if (result.token) {
+                    localStorage.setItem('jainzee_token', result.token);
+                }
+                clearInterval(otpTimerInterval);
+                showToast('Login successful! Welcome ' + (result.customer ? result.customer.name : '') + '!');
+                const redir = new URLSearchParams(window.location.search).get('redirect');
+                if (redir === 'checkout') {
+                    window.location.href = '/checkout';
+                    return;
+                }
+                loadCustomerDashboard();
+            } catch (e) {
+                showToast(e.message, 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify &amp; Login';
+                }
             }
         }
 
