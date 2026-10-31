@@ -968,9 +968,7 @@
                 await finalizeOrder(name, phone, address, rzpData.order_id, fakePayId, 'simulated_signature');
             };
         }
-        }
 
-        
         function updatePaymentMethodUI() {
             const isRzp = document.getElementById('payRazorpay') ? document.getElementById('payRazorpay').checked : true;
             const labelRzp = document.getElementById('labelPayRazorpay');
