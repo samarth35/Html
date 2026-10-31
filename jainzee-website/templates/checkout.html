@@ -151,25 +151,41 @@
 
                         <div style="margin-bottom: 30px;">
                             <label style="display: block; color: var(--text); font-weight: 600; margin-bottom: 12px;" data-i18n="checkout_payment">Payment Method</label>
-                            <div style="background: #f0fdf4; border: 2px solid #16a34a; border-radius: 14px; padding: 20px; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.08);">
-                                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; width: 100%; margin: 0;">
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Option 1: Razorpay Online Payment -->
+                                <label id="labelPayRazorpay" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 18px 20px; border: 2px solid #16a34a; background: #f0fdf4; border-radius: 14px; transition: all 0.25s;">
                                     <div style="display: flex; align-items: center; gap: 14px;">
-                                        <input type="radio" name="payment" value="razorpay" id="payRazorpay" checked style="accent-color: #16a34a; width: 22px; height: 22px; cursor: pointer;">
+                                        <input type="radio" name="payment" value="razorpay" id="payRazorpay" checked onchange="updatePaymentMethodUI()" style="accent-color: #16a34a; width: 22px; height: 22px; cursor: pointer;">
                                         <div>
-                                            <div style="color: #15803d; font-weight: 700; font-size: 1.08rem; display: flex; align-items: center; gap: 8px;">
-                                                <i class="fas fa-shield-alt"></i> Razorpay Secure Payment
-                                                <span style="background: #dcfce7; color: #166534; font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; font-weight: 600;">100% Safe &amp; Verified</span>
+                                            <div style="color: #15803d; font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                                                <i class="fas fa-shield-alt"></i> Razorpay Online Payment
+                                                <span style="background: #dcfce7; color: #166534; font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; font-weight: 600;">100% Safe • Instant Confirmation</span>
                                             </div>
-                                            <div style="color: #4b5563; font-size: 0.85rem; margin-top: 5px;">
-                                                Pay securely via <strong>UPI</strong> (Google Pay, PhonePe, Paytm), <strong>Cards</strong> (Visa, Mastercard, RuPay), <strong>Netbanking</strong> &amp; <strong>Wallets</strong>
+                                            <div style="color: #4b5563; font-size: 0.84rem; margin-top: 4px;">
+                                                UPI (Google Pay, PhonePe, Paytm), Cards (Visa, Mastercard, RuPay) &amp; Netbanking
                                             </div>
                                         </div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 10px;">
-                                        <span style="font-size: 1.5rem;" title="Cards">💳</span>
-                                        <span style="font-size: 1.5rem;" title="UPI">📱</span>
-                                        <span style="font-size: 1.5rem;" title="Netbanking">🏦</span>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 1.4rem;" title="Cards">💳</span>
+                                        <span style="font-size: 1.4rem;" title="UPI">📱</span>
                                     </div>
+                                </label>
+
+                                <!-- Option 2: Cash on Delivery (COD) -->
+                                <label id="labelPayCod" style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 18px 20px; border: 2px solid #e5e7eb; background: #ffffff; border-radius: 14px; transition: all 0.25s;">
+                                    <div style="display: flex; align-items: center; gap: 14px;">
+                                        <input type="radio" name="payment" value="cod" id="payCod" onchange="updatePaymentMethodUI()" style="accent-color: #16a34a; width: 22px; height: 22px; cursor: pointer;">
+                                        <div>
+                                            <div style="color: #1a1a1a; font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+                                                <i class="fas fa-money-bill-wave" style="color: #15803d;"></i> Cash on Delivery (COD)
+                                            </div>
+                                            <div style="color: #6b7280; font-size: 0.84rem; margin-top: 4px;">
+                                                Pay cash directly to the delivery partner when package arrives at your home
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="font-size: 1.4rem;" title="Cash on Delivery">💵</div>
                                 </label>
                             </div>
                         </div>
@@ -188,8 +204,8 @@
                             <div id="deliveryEstimate" style="display:none; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; align-items: center; gap: 8px;"></div>
                         </div>
 
-                        <button class="btn btn-primary" style="width: 100%; font-size: 1.15rem; padding: 18px; background: #16a34a; border-color: #16a34a; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);" onclick="placeOrder()">
-                            <i class="fas fa-lock"></i> <span data-i18n="checkout_pay_razorpay">Proceed to Pay via Razorpay</span>
+                        <button id="btnPlaceOrder" class="btn btn-primary" style="width: 100%; font-size: 1.15rem; padding: 18px; background: #16a34a; border-color: #16a34a; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);" onclick="placeOrder()">
+                            <i class="fas fa-lock" id="btnPlaceOrderIcon"></i> <span id="btnPlaceOrderText">Proceed to Pay via Razorpay</span>
                         </button>
                     </div>
 
@@ -812,7 +828,30 @@
             }
 
             try {
-                // Initialize Razorpay order
+                // If Cash on Delivery is selected
+                if (paymentMethod === 'cod') {
+                    const codRes = await authFetch('/api/checkout', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name: name,
+                            phone: phone,
+                            address: address,
+                            payment_method: 'cod',
+                            coupon_code: appliedCoupon ? appliedCoupon.code : ''
+                        })
+                    });
+                    const codData = await codRes.json();
+                    if (!codRes.ok) throw new Error(codData.error || 'Failed to place COD order');
+
+                    sessionStorage.removeItem('jainzee_applied_coupon');
+                    document.getElementById('checkoutContent').style.display = 'none';
+                    document.getElementById('successOrderId').textContent = codData.order_id;
+                    document.getElementById('checkoutSuccess').style.display = '';
+                    return;
+                }
+
+                // If Razorpay Online Payment is selected
                 const rzpRes = await authFetch('/api/razorpay/create-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -929,6 +968,39 @@
                 await finalizeOrder(name, phone, address, rzpData.order_id, fakePayId, 'simulated_signature');
             };
         }
+        }
+
+        
+        function updatePaymentMethodUI() {
+            const isRzp = document.getElementById('payRazorpay') ? document.getElementById('payRazorpay').checked : true;
+            const labelRzp = document.getElementById('labelPayRazorpay');
+            const labelCod = document.getElementById('labelPayCod');
+            const btnText = document.getElementById('btnPlaceOrderText');
+            const btnIcon = document.getElementById('btnPlaceOrderIcon');
+
+            if (isRzp) {
+                if (labelRzp) {
+                    labelRzp.style.borderColor = '#16a34a';
+                    labelRzp.style.background = '#f0fdf4';
+                }
+                if (labelCod) {
+                    labelCod.style.borderColor = '#e5e7eb';
+                    labelCod.style.background = '#ffffff';
+                }
+                if (btnText) btnText.textContent = (typeof currentLangCheckout !== 'undefined' && currentLangCheckout === 'hi') ? 'Razorpay द्वारा ऑनलाइन भुगतान करें' : 'Proceed to Pay via Razorpay';
+                if (btnIcon) btnIcon.className = 'fas fa-lock';
+            } else {
+                if (labelRzp) {
+                    labelRzp.style.borderColor = '#e5e7eb';
+                    labelRzp.style.background = '#ffffff';
+                }
+                if (labelCod) {
+                    labelCod.style.borderColor = '#16a34a';
+                    labelCod.style.background = '#f0fdf4';
+                }
+                if (btnText) btnText.textContent = (typeof currentLangCheckout !== 'undefined' && currentLangCheckout === 'hi') ? 'ऑर्डर दें (Cash on Delivery)' : 'Place Order (Cash on Delivery)';
+                if (btnIcon) btnIcon.className = 'fas fa-truck';
+            }
         }
 
         // Language toggle
