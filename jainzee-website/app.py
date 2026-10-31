@@ -2998,8 +2998,6 @@ def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
     key_id = get_config_setting('razorpay_key_id')
     key_secret = get_config_setting('razorpay_key_secret')
-    if not key_id or not key_secret:
-        return jsonify({'error': 'Razorpay payment gateway is not configured yet. Please configure Key ID and Secret in Admin Settings.'}), 400
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
@@ -3070,44 +3068,58 @@ def api_razorpay_create_order():
     if amount_in_paise <= 0:
         return jsonify({'error': 'Total order amount must be greater than zero.'}), 400
 
-    url = "https://api.razorpay.com/v1/orders"
-    auth = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
-    order_payload = json.dumps({
-        'amount': amount_in_paise,
-        'currency': 'INR',
-        'receipt': f"jz_{int(time.time())}",
-        'notes': {
-            'customer_name': data.get('name', ''),
-            'customer_phone': data.get('phone', '')
-        }
-    }).encode('utf-8')
+    if key_id and key_secret:
+        url = "https://api.razorpay.com/v1/orders"
+        auth = base64.b64encode(f"{key_id}:{key_secret}".encode()).decode()
+        order_payload = json.dumps({
+            'amount': amount_in_paise,
+            'currency': 'INR',
+            'receipt': f"jz_{int(time.time())}",
+            'notes': {
+                'customer_name': data.get('name', ''),
+                'customer_phone': data.get('phone', '')
+            }
+        }).encode('utf-8')
 
-    req = urllib.request.Request(url, data=order_payload, headers={
-        'Authorization': f'Basic {auth}',
-        'Content-Type': 'application/json'
-    })
+        req = urllib.request.Request(url, data=order_payload, headers={
+            'Authorization': f'Basic {auth}',
+            'Content-Type': 'application/json'
+        })
 
-    try:
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            rzp_order = json.loads(resp.read().decode())
-            return jsonify({
-                'success': True,
-                'key_id': key_id,
-                'order_id': rzp_order['id'],
-                'amount': rzp_order['amount'],
-                'currency': rzp_order.get('currency', 'INR')
-            })
-    except urllib.error.HTTPError as e:
-        err_msg = e.read().decode()
-        print(f"[RAZORPAY ERROR {e.code}] {err_msg}")
         try:
-            err_json = json.loads(err_msg)
-            return jsonify({'error': err_json.get('error', {}).get('description', f"Razorpay error {e.code}")}), 400
-        except Exception:
-            return jsonify({'error': f"Razorpay error: {err_msg}"}), 400
-    except Exception as e:
-        print(f"[RAZORPAY EXCEPTION] {e}")
-        return jsonify({'error': f"Failed to connect to Razorpay: {str(e)}"}), 500
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                rzp_order = json.loads(resp.read().decode())
+                return jsonify({
+                    'success': True,
+                    'is_simulation': False,
+                    'key_id': key_id,
+                    'order_id': rzp_order['id'],
+                    'amount': rzp_order['amount'],
+                    'currency': rzp_order.get('currency', 'INR')
+                })
+        except urllib.error.HTTPError as e:
+            err_msg = e.read().decode()
+            print(f"[RAZORPAY ERROR {e.code}] {err_msg}")
+            try:
+                err_json = json.loads(err_msg)
+                return jsonify({'error': err_json.get('error', {}).get('description', f"Razorpay error {e.code}")}), 400
+            except Exception:
+                return jsonify({'error': f"Razorpay error: {err_msg}"}), 400
+        except Exception as e:
+            print(f"[RAZORPAY EXCEPTION] {e}")
+            return jsonify({'error': f"Failed to connect to Razorpay: {str(e)}"}), 500
+    else:
+        # Simulation Mode: Allows testing checkout immediately before API keys are added in Admin Settings
+        sim_order_id = f"order_sim_{int(time.time())}"
+        return jsonify({
+            'success': True,
+            'is_simulation': True,
+            'key_id': 'rzp_test_simulation',
+            'order_id': sim_order_id,
+            'amount': amount_in_paise,
+            'currency': 'INR',
+            'notice': 'Razorpay keys not configured yet. Running in Test Simulation Mode.'
+        })
 
 @app.route('/api/checkout', methods=['POST'])
 def api_checkout():

@@ -151,21 +151,25 @@
 
                         <div style="margin-bottom: 30px;">
                             <label style="display: block; color: var(--text); font-weight: 600; margin-bottom: 12px;" data-i18n="checkout_payment">Payment Method</label>
-                            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                                <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e8e0d5; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: #fdfaf6; color: #1a1a1a;">
-                                    <input type="radio" name="payment" value="razorpay" id="payRazorpay" style="accent-color: var(--primary);">
-                                    <i class="fas fa-credit-card" style="color: var(--primary); font-size: 1.5rem;"></i>
-                                    <span style="color: #1a1a1a !important; font-weight: 600;" data-i18n="checkout_razorpay">Razorpay (Cards / UPI / Netbanking)</span>
-                                </label>
-                                <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e8e0d5; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: #fdfaf6; color: #1a1a1a;">
-                                    <input type="radio" name="payment" value="upi" id="payUpi" style="accent-color: var(--primary);">
-                                    <i class="fas fa-mobile-alt" style="color: var(--primary); font-size: 1.5rem;"></i>
-                                    <span style="color: #1a1a1a !important; font-weight: 600;" data-i18n="checkout_upi">Direct UPI</span>
-                                </label>
-                                <label style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 15px; border: 2px solid #e8e0d5; border-radius: 12px; cursor: pointer; transition: all 0.3s; background: #fdfaf6; color: #1a1a1a;">
-                                    <input type="radio" name="payment" value="cod" id="payCod" style="accent-color: var(--primary);">
-                                    <i class="fas fa-money-bill-wave" style="color: var(--primary); font-size: 1.5rem;"></i>
-                                    <span style="color: #1a1a1a !important; font-weight: 600;" data-i18n="checkout_cod">Cash on Delivery (COD)</span>
+                            <div style="background: #f0fdf4; border: 2px solid #16a34a; border-radius: 14px; padding: 20px; box-shadow: 0 4px 15px rgba(22, 163, 74, 0.08);">
+                                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; width: 100%; margin: 0;">
+                                    <div style="display: flex; align-items: center; gap: 14px;">
+                                        <input type="radio" name="payment" value="razorpay" id="payRazorpay" checked style="accent-color: #16a34a; width: 22px; height: 22px; cursor: pointer;">
+                                        <div>
+                                            <div style="color: #15803d; font-weight: 700; font-size: 1.08rem; display: flex; align-items: center; gap: 8px;">
+                                                <i class="fas fa-shield-alt"></i> Razorpay Secure Payment
+                                                <span style="background: #dcfce7; color: #166534; font-size: 0.72rem; padding: 3px 9px; border-radius: 20px; font-weight: 600;">100% Safe &amp; Verified</span>
+                                            </div>
+                                            <div style="color: #4b5563; font-size: 0.85rem; margin-top: 5px;">
+                                                Pay securely via <strong>UPI</strong> (Google Pay, PhonePe, Paytm), <strong>Cards</strong> (Visa, Mastercard, RuPay), <strong>Netbanking</strong> &amp; <strong>Wallets</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 1.5rem;" title="Cards">💳</span>
+                                        <span style="font-size: 1.5rem;" title="UPI">📱</span>
+                                        <span style="font-size: 1.5rem;" title="Netbanking">🏦</span>
+                                    </div>
                                 </label>
                             </div>
                         </div>
@@ -184,8 +188,8 @@
                             <div id="deliveryEstimate" style="display:none; margin-top: 10px; padding: 10px 14px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; align-items: center; gap: 8px;"></div>
                         </div>
 
-                        <button class="btn btn-primary" style="width: 100%; font-size: 1.1rem; padding: 18px;" onclick="placeOrder()">
-                            <i class="fas fa-check-circle"></i> <span data-i18n="checkout_place_order">Place Order</span>
+                        <button class="btn btn-primary" style="width: 100%; font-size: 1.15rem; padding: 18px; background: #16a34a; border-color: #16a34a; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);" onclick="placeOrder()">
+                            <i class="fas fa-lock"></i> <span data-i18n="checkout_pay_razorpay">Proceed to Pay via Razorpay</span>
                         </button>
                     </div>
 
@@ -808,95 +812,123 @@
             }
 
             try {
-                // If payment method is Razorpay, initiate Razorpay order and checkout popup
-                if (paymentMethod === 'razorpay') {
-                    const rzpRes = await authFetch('/api/razorpay/create-order', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            name: name,
-                            phone: phone,
-                            address: address,
-                            coupon_code: appliedCoupon ? appliedCoupon.code : ''
-                        })
-                    });
-                    const rzpData = await rzpRes.json();
-                    if (!rzpRes.ok) throw new Error(rzpData.error || 'Failed to initialize Razorpay payment');
-
-                    const options = {
-                        "key": rzpData.key_id,
-                        "amount": rzpData.amount,
-                        "currency": rzpData.currency || "INR",
-                        "name": "Jainzee Food Processing Industries",
-                        "description": "Premium Dry Fruits Order",
-                        "image": "/static/images/logo.png",
-                        "order_id": rzpData.order_id,
-                        "handler": async function (rzpResponse) {
-                            try {
-                                const verifyRes = await authFetch('/api/checkout', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        name: name,
-                                        phone: phone,
-                                        address: address,
-                                        payment_method: 'razorpay',
-                                        coupon_code: appliedCoupon ? appliedCoupon.code : '',
-                                        razorpay_order_id: rzpResponse.razorpay_order_id,
-                                        razorpay_payment_id: rzpResponse.razorpay_payment_id,
-                                        razorpay_signature: rzpResponse.razorpay_signature
-                                    })
-                                });
-                                const vData = await verifyRes.json();
-                                if (!verifyRes.ok) throw new Error(vData.error || 'Payment recorded, but checkout failed');
-
-                                sessionStorage.removeItem('jainzee_applied_coupon');
-                                document.getElementById('checkoutContent').style.display = 'none';
-                                document.getElementById('successOrderId').textContent = vData.order_id;
-                                document.getElementById('checkoutSuccess').style.display = '';
-                            } catch (err) {
-                                alert('Order Verification Error: ' + err.message);
-                            }
-                        },
-                        "prefill": {
-                            "name": name,
-                            "contact": phone
-                        },
-                        "theme": {
-                            "color": "#15803d"
-                        }
-                    };
-                    const rzp1 = new Razorpay(options);
-                    rzp1.on('payment.failed', function (resp) {
-                        alert('Payment Failed: ' + (resp.error ? resp.error.description : 'Transaction was declined'));
-                    });
-                    rzp1.open();
-                    return;
-                }
-
-                // COD or UPI
-                const res = await authFetch('/api/checkout', {
+                // Initialize Razorpay order
+                const rzpRes = await authFetch('/api/razorpay/create-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         name: name,
                         phone: phone,
                         address: address,
-                        payment_method: paymentMethod,
                         coupon_code: appliedCoupon ? appliedCoupon.code : ''
                     })
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Checkout failed');
+                const rzpData = await rzpRes.json();
+                if (!rzpRes.ok) throw new Error(rzpData.error || 'Failed to initialize Razorpay payment');
 
-                // Show success
-                sessionStorage.removeItem('jainzee_applied_coupon');
-                document.getElementById('checkoutContent').style.display = 'none';
-                document.getElementById('successOrderId').textContent = data.order_id;
-                document.getElementById('checkoutSuccess').style.display = '';
+                // If running in simulation/test mode (before live keys are configured in admin panel)
+                if (rzpData.is_simulation) {
+                    showSimulationModal(rzpData, name, phone, address);
+                    return;
+                }
+
+                // Official Razorpay Checkout Modal
+                const options = {
+                    "key": rzpData.key_id,
+                    "amount": rzpData.amount,
+                    "currency": rzpData.currency || "INR",
+                    "name": "Jainzee Food Processing Industries",
+                    "description": "Premium Dry Fruits Order",
+                    "image": "/static/images/logo.png",
+                    "order_id": rzpData.order_id,
+                    "handler": async function (rzpResponse) {
+                        await finalizeOrder(name, phone, address, rzpResponse.razorpay_order_id, rzpResponse.razorpay_payment_id, rzpResponse.razorpay_signature);
+                    },
+                    "prefill": {
+                        "name": name,
+                        "contact": phone
+                    },
+                    "theme": {
+                        "color": "#15803d"
+                    }
+                };
+                const rzp1 = new Razorpay(options);
+                rzp1.on('payment.failed', function (resp) {
+                    alert('Payment Failed: ' + (resp.error ? resp.error.description : 'Transaction was declined'));
+                });
+                rzp1.open();
             } catch(e) {
                 alert('Error: ' + e.message);
             }
+        }
+
+        async function finalizeOrder(name, phone, address, rzpOrderId, rzpPayId, rzpSig) {
+            try {
+                const verifyRes = await authFetch('/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        phone: phone,
+                        address: address,
+                        payment_method: 'razorpay',
+                        coupon_code: appliedCoupon ? appliedCoupon.code : '',
+                        razorpay_order_id: rzpOrderId,
+                        razorpay_payment_id: rzpPayId,
+                        razorpay_signature: rzpSig
+                    })
+                });
+                const vData = await verifyRes.json();
+                if (!verifyRes.ok) throw new Error(vData.error || 'Payment recorded, but checkout failed');
+
+                sessionStorage.removeItem('jainzee_applied_coupon');
+                document.getElementById('checkoutContent').style.display = 'none';
+                document.getElementById('successOrderId').textContent = vData.order_id;
+                document.getElementById('checkoutSuccess').style.display = '';
+            } catch (err) {
+                alert('Order Verification Error: ' + err.message);
+            }
+        }
+
+        function showSimulationModal(rzpData, name, phone, address) {
+            const amountInRs = (rzpData.amount / 100).toFixed(2);
+            let modal = document.getElementById('rzpSimModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'rzpSimModal';
+                modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:999999;padding:20px;';
+                document.body.appendChild(modal);
+            }
+            modal.innerHTML = `
+                <div style="background:#ffffff;border-radius:16px;max-width:440px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.3);overflow:hidden;font-family:inherit;">
+                    <div style="background:#15803d;color:white;padding:20px;text-align:center;">
+                        <div style="font-size:1.3rem;font-weight:700;"><i class="fas fa-shield-alt"></i> Razorpay Payment</div>
+                        <div style="font-size:0.85rem;opacity:0.9;margin-top:4px;">Jainzee Food Processing Industries</div>
+                    </div>
+                    <div style="padding:25px;text-align:center;">
+                        <div style="font-size:2rem;font-weight:800;color:#1a1a1a;margin-bottom:5px;">₹${amountInRs}</div>
+                        <div style="display:inline-block;background:#fef3c7;color:#92400e;font-size:0.75rem;padding:3px 10px;border-radius:20px;font-weight:700;margin-bottom:15px;">
+                            ⚡ TEST SIMULATION MODE
+                        </div>
+                        <p style="color:#4b5563;font-size:0.9rem;line-height:1.5;margin-bottom:20px;">
+                            Razorpay payment flow is ready. Click below to simulate an instant successful payment or add your live API keys in Admin Settings.
+                        </p>
+                        <button id="btnCompleteSim" style="width:100%;padding:15px;background:#16a34a;color:white;border:none;border-radius:10px;font-size:1.05rem;font-weight:700;cursor:pointer;margin-bottom:10px;transition:all 0.2s;">
+                            <i class="fas fa-check-circle"></i> Pay ₹${amountInRs} (Simulate Success)
+                        </button>
+                        <button onclick="document.getElementById('rzpSimModal').style.display='none'" style="width:100%;padding:10px;background:transparent;color:#6b7280;border:none;font-size:0.9rem;cursor:pointer;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+            document.getElementById('btnCompleteSim').onclick = async function() {
+                modal.style.display = 'none';
+                const fakePayId = 'pay_sim_' + Date.now();
+                await finalizeOrder(name, phone, address, rzpData.order_id, fakePayId, 'simulated_signature');
+            };
+        }
         }
 
         // Language toggle
