@@ -126,6 +126,16 @@
                 <p data-i18n="checkout_subtitle">Enter your details and choose payment method</p>
             </div>
 
+            <!-- Empty Cart Notice (shown if visited without items) -->
+            <div id="checkoutEmpty" style="display: none; text-align: center; padding: 60px 20px; background: #ffffff; border-radius: 16px; border: 1.5px solid #e8e0d5; max-width: 500px; margin: 30px auto; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                <div style="font-size: 3.5rem; margin-bottom: 15px;">🛒</div>
+                <h3 style="color: #1a1a1a; margin-bottom: 10px; font-size: 1.4rem;">Your Cart is Empty</h3>
+                <p style="color: #666; font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5;">Please add fresh dry fruits or combo packs to your cart before proceeding to checkout.</p>
+                <a href="/#products" class="btn btn-primary" style="padding: 14px 30px; font-size: 1rem; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-shopping-bag"></i> Browse Fresh Dry Fruits
+                </a>
+            </div>
+
             <div id="checkoutContent" style="display: none;">
                 <div class="checkout-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
                     <!-- Checkout Form -->
@@ -417,10 +427,15 @@
             try {
                 const res = await fetch('/api/cart');
                 checkoutItems = await res.json();
-                if (!checkoutItems.length) {
-                    window.location.href = '/cart';
+                if (!checkoutItems || !checkoutItems.length) {
+                    const emptyEl = document.getElementById('checkoutEmpty');
+                    if (emptyEl) emptyEl.style.display = 'block';
+                    const contentEl = document.getElementById('checkoutContent');
+                    if (contentEl) contentEl.style.display = 'none';
                     return;
                 }
+                const emptyEl = document.getElementById('checkoutEmpty');
+                if (emptyEl) emptyEl.style.display = 'none';
                 await renderCheckoutItems();
                 document.getElementById('checkoutContent').style.display = '';
             } catch(e) {
@@ -503,13 +518,30 @@
         }
 
         // Payment method toggle
-        document.getElementById('payUpi').addEventListener('change', function() {
-            document.getElementById('upiSection').style.display = '';
-            loadUpiQrCode();
-        });
-        document.getElementById('payCod').addEventListener('change', function() {
-            document.getElementById('upiSection').style.display = 'none';
-        });
+        const payUpiEl = document.getElementById('payUpi');
+        if (payUpiEl) {
+            payUpiEl.addEventListener('change', function() {
+                const upiSec = document.getElementById('upiSection');
+                if (upiSec) upiSec.style.display = '';
+                loadUpiQrCode();
+            });
+        }
+        const payCodEl = document.getElementById('payCod');
+        if (payCodEl) {
+            payCodEl.addEventListener('change', function() {
+                const upiSec = document.getElementById('upiSection');
+                if (upiSec) upiSec.style.display = 'none';
+                if (typeof updatePaymentMethodUI === 'function') updatePaymentMethodUI();
+            });
+        }
+        const payRazorpayEl = document.getElementById('payRazorpay');
+        if (payRazorpayEl) {
+            payRazorpayEl.addEventListener('change', function() {
+                const upiSec = document.getElementById('upiSection');
+                if (upiSec) upiSec.style.display = 'none';
+                if (typeof updatePaymentMethodUI === 'function') updatePaymentMethodUI();
+            });
+        }
 
         // Load UPI QR code from settings (Base64 permanent storage)
         async function loadUpiQrCode() {

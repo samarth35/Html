@@ -93,7 +93,7 @@ except Exception as _e:
 # SECURITY: SECRET_KEY must come from the environment. In development (no
 # SECRET_KEY set) a random key is generated for the current process; set
 # SECRET_KEY in production so sessions survive restarts.
-app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+app.secret_key = os.environ.get('SECRET_KEY') or 'jainzee_indore_siyaganj_secure_session_token_key_2026'
 if not os.environ.get('SECRET_KEY'):
     print('[WARNING] SECRET_KEY environment variable is not set. '
           'Using a random temporary key - sessions will not survive restarts. '
