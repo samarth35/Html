@@ -409,6 +409,8 @@
                     msg = 'Too many requests. Please wait a short while and try again.';
                 } else if (err.code === 'auth/quota-exceeded') {
                     msg = 'SMS quota reached. Please try again later.';
+                } else if (err.code === 'auth/operation-not-allowed' || (err.message && err.message.includes('region'))) {
+                    msg = 'Firebase Console me Phone provider & India (+91) region enable karna zaroori hai.';
                 } else if (err.code === 'auth/billing-not-enabled') {
                     msg = 'Firebase Phone Auth configuration required: check Firebase Console.';
                 }

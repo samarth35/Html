@@ -31,6 +31,22 @@ function getCsrfToken() {
 }
 
 /**
+ * Safely reset and clean the reCAPTCHA verifier and DOM container
+ */
+function resetRecaptcha(containerId = 'recaptcha-container') {
+    if (window.recaptchaVerifier) {
+        try {
+            window.recaptchaVerifier.clear();
+        } catch (e) {}
+        window.recaptchaVerifier = null;
+    }
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = '';
+    }
+}
+
+/**
  * Initialize or get invisible reCAPTCHA verifier for Phone Auth
  */
 function getRecaptchaVerifier(containerId = 'recaptcha-container') {
@@ -42,6 +58,7 @@ function getRecaptchaVerifier(containerId = 'recaptcha-container') {
         console.warn('Recaptcha container #' + containerId + ' not found in DOM.');
         return null;
     }
+    container.innerHTML = ''; // Clean element before rendering new reCAPTCHA
     window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(containerId, {
         size: 'invisible',
         callback: function (response) {
@@ -49,9 +66,11 @@ function getRecaptchaVerifier(containerId = 'recaptcha-container') {
         },
         'expired-callback': function () {
             if (window.recaptchaVerifier) {
-                window.recaptchaVerifier.render().then(function(widgetId) {
-                    grecaptcha.reset(widgetId);
-                });
+                try {
+                    window.recaptchaVerifier.render().then(function(widgetId) {
+                        if (typeof grecaptcha !== 'undefined') grecaptcha.reset(widgetId);
+                    });
+                } catch (e) {}
             }
         }
     });
@@ -94,12 +113,7 @@ async function sendFirebasePhoneOtp(rawPhone, containerId = 'recaptcha-container
             message: 'SMS verification code sent to ' + formattedPhone
         };
     } catch (error) {
-        if (window.recaptchaVerifier) {
-            try {
-                window.recaptchaVerifier.clear();
-            } catch (e) {}
-            window.recaptchaVerifier = null;
-        }
+        resetRecaptcha(containerId);
         throw error;
     }
 }
@@ -211,6 +225,7 @@ if (typeof module !== 'undefined' && module.exports) {
         verifyFirebasePhoneOtp,
         sendFirebaseEmailLink,
         handleFirebaseEmailLinkSignIn,
-        syncFirebaseUserWithBackend
+        syncFirebaseUserWithBackend,
+        resetRecaptcha
     };
 }
