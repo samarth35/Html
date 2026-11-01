@@ -163,6 +163,13 @@
                 <!-- Phone OTP Login Form (Firebase) -->
                 <div class="auth-form" id="otpForm">
                     <div id="otpStep1">
+                        <div id="firebaseRegionAlert" style="display: none; background: #fef2f2; border: 1.5px solid #f87171; border-radius: 8px; padding: 12px; margin-bottom: 14px; color: #991b1b; font-size: 0.82rem; line-height: 1.4;">
+                            <div style="font-weight: 700; margin-bottom: 4px;"><i class="fas fa-exclamation-triangle"></i> Firebase SMS Region Not Allowed:</div>
+                            Firebase Console me <strong>India (+91)</strong> allow karna zaroori hai.<br>
+                            <a href="https://console.firebase.google.com/project/jainzee-dd1d7/authentication/settings" target="_blank" style="color: #b91c1c; font-weight: 700; text-decoration: underline;">
+                                👉 Click here to enable India (+91) in Firebase Console <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </div>
                         <div class="form-group">
                             <label><i class="fas fa-mobile-alt"></i> Mobile Number</label>
                             <div style="display: flex; gap: 8px;">
@@ -410,7 +417,9 @@
                 } else if (err.code === 'auth/quota-exceeded') {
                     msg = 'SMS quota reached. Please try again later.';
                 } else if (err.code === 'auth/operation-not-allowed' || (err.message && err.message.includes('region'))) {
-                    msg = 'Firebase Console me Phone provider & India (+91) region enable karna zaroori hai.';
+                    msg = 'Firebase Console me India (+91) SMS region allow karein.';
+                    const alertBox = document.getElementById('firebaseRegionAlert');
+                    if (alertBox) alertBox.style.display = 'block';
                 } else if (err.code === 'auth/billing-not-enabled') {
                     msg = 'Firebase Phone Auth configuration required: check Firebase Console.';
                 }

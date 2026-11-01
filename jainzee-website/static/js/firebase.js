@@ -32,6 +32,7 @@ function getCsrfToken() {
 
 /**
  * Safely reset and clean the reCAPTCHA verifier and DOM container
+ * Replaces the DOM element to guarantee grecaptcha never complains of duplicate rendering.
  */
 function resetRecaptcha(containerId = 'recaptcha-container') {
     if (window.recaptchaVerifier) {
@@ -41,8 +42,10 @@ function resetRecaptcha(containerId = 'recaptcha-container') {
         window.recaptchaVerifier = null;
     }
     const container = document.getElementById(containerId);
-    if (container) {
-        container.innerHTML = '';
+    if (container && container.parentNode) {
+        const freshContainer = document.createElement('div');
+        freshContainer.id = containerId;
+        container.parentNode.replaceChild(freshContainer, container);
     }
 }
 
@@ -58,23 +61,31 @@ function getRecaptchaVerifier(containerId = 'recaptcha-container') {
         console.warn('Recaptcha container #' + containerId + ' not found in DOM.');
         return null;
     }
-    container.innerHTML = ''; // Clean element before rendering new reCAPTCHA
-    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(containerId, {
-        size: 'invisible',
-        callback: function (response) {
-            // reCAPTCHA solved
-        },
-        'expired-callback': function () {
-            if (window.recaptchaVerifier) {
-                try {
-                    window.recaptchaVerifier.render().then(function(widgetId) {
-                        if (typeof grecaptcha !== 'undefined') grecaptcha.reset(widgetId);
-                    });
-                } catch (e) {}
+    try {
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(containerId, {
+            size: 'invisible',
+            callback: function (response) {
+                // reCAPTCHA solved
+            },
+            'expired-callback': function () {
+                if (window.recaptchaVerifier) {
+                    try {
+                        window.recaptchaVerifier.render().then(function(widgetId) {
+                            if (typeof grecaptcha !== 'undefined') grecaptcha.reset(widgetId);
+                        });
+                    } catch (e) {}
+                }
             }
-        }
-    });
-    return window.recaptchaVerifier;
+        });
+        return window.recaptchaVerifier;
+    } catch (err) {
+        console.warn('Recaptcha init retry with clean DOM node:', err);
+        resetRecaptcha(containerId);
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier(containerId, {
+            size: 'invisible'
+        });
+        return window.recaptchaVerifier;
+    }
 }
 
 /**
