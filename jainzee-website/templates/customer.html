@@ -9,7 +9,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="/static/js/premium.js?v=1.0"></script>
+        <script src="/static/js/premium.js?v=1.0"></script>
+    <!-- Firebase SDK (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="{{ url_for('static', filename='js/firebase.js') }}?v=1.1"></script>
     <style>
         .customer-header { background: linear-gradient(135deg, #2c1810, #5a3d2b); }
         /* ===== ORDER TRACKING PROGRESS BAR ===== */
@@ -42,7 +46,8 @@
         .auth-section { max-width: 450px; margin: 40px auto; }
         .auth-card { background: white; border-radius: 16px; padding: 35px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
         .auth-card h2 { color: #2c1810; margin-bottom: 20px; text-align: center; }
-        .auth-tabs { display: flex; margin-bottom: 25px; background: #f5f0e8; border-radius: 10px; padding: 4px; }
+        .auth-tabs { display: flex; margin-bottom: 25px; background: #f5f0e8; border-radius: 10px; padding: 4px; gap: 4px; overflow-x: auto; }
+        .auth-tab { flex: 1; min-width: 70px; padding: 10px 4px; text-align: center; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; color: #8a7362; font-size: 0.8rem; white-space: nowrap; transition: all 0.2s; }
         .auth-tab { flex: 1; padding: 10px; text-align: center; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; color: #8a7362; }
         .auth-tab.active { background: #b8860b; color: white; }
         .auth-form { display: none; }
@@ -116,9 +121,10 @@
         <div class="auth-section" id="authSection">
             <div class="auth-card">
                 <h2><i class="fas fa-user-circle"></i> Customer Login</h2>
-                <div class="auth-tabs" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="auth-tabs">
                     <button class="auth-tab active" onclick="switchAuthTab('login')"><i class="fas fa-key"></i> Password</button>
-                    <button class="auth-tab" onclick="switchAuthTab('otp')"><i class="fas fa-shield-alt"></i> OTP Login</button>
+                    <button class="auth-tab" onclick="switchAuthTab('otp')"><i class="fas fa-mobile-alt"></i> Phone OTP</button>
+                    <button class="auth-tab" onclick="switchAuthTab('magic')"><i class="fas fa-magic"></i> Email Link</button>
                     <button class="auth-tab" onclick="switchAuthTab('register')"><i class="fas fa-user-plus"></i> Register</button>
                 </div>
 
@@ -154,44 +160,76 @@
                     </button>
                 </div>
 
-                                <!-- OTP Login Form -->
+                <!-- Phone OTP Login Form (Firebase) -->
                 <div class="auth-form" id="otpForm">
                     <div id="otpStep1">
                         <div class="form-group">
-                            <label><i class="fas fa-mobile-alt"></i> Mobile Number or Email</label>
-                            <input type="text" id="otpIdentifier" placeholder="Enter 10-digit mobile or email address" onkeydown="if(event.key==='Enter') requestOtp()">
-                            <small style="color: #8a7362; font-size: 0.78rem; display: block; margin-top: 4px;">
-                                SMS will be sent to your mobile or verification code to your email.
+                            <label><i class="fas fa-mobile-alt"></i> Mobile Number</label>
+                            <div style="display: flex; gap: 8px;">
+                                <span style="display: flex; align-items: center; padding: 0 12px; background: #f5f0e8; border: 2px solid #e8e0d5; border-radius: 10px; font-weight: 700; color: #5a3d2b; font-size: 0.95rem;">+91</span>
+                                <input type="tel" id="otpPhoneInput" maxlength="10" placeholder="10-digit mobile number" style="flex: 1;" onkeydown="if(event.key==='Enter') requestFirebaseOtp()">
+                            </div>
+                            <small style="color: #8a7362; font-size: 0.78rem; display: block; margin-top: 5px;">
+                                <i class="fas fa-shield-alt" style="color: #16a34a;"></i> Real SMS OTP will be sent directly to your phone.
                             </small>
                         </div>
-                        <button class="btn btn-primary btn-block" id="btnSendOtp" onclick="requestOtp()">
-                            <i class="fas fa-paper-plane"></i> Send OTP
+                        <div id="recaptcha-container"></div>
+                        <button class="btn btn-primary btn-block" id="btnSendPhoneOtp" onclick="requestFirebaseOtp()">
+                            <i class="fas fa-paper-plane"></i> Send OTP via SMS
                         </button>
                     </div>
 
                     <div id="otpStep2" style="display: none;">
                         <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #166534;">
-                            <i class="fas fa-check-circle"></i> <span id="otpSentNotice">OTP sent!</span>
+                            <i class="fas fa-check-circle"></i> <span id="otpSentNotice">OTP sent via SMS!</span>
                             <div style="font-size: 0.78rem; color: #15803d; margin-top: 3px;">
-                                <a href="javascript:void(0)" onclick="resetOtpStep()" style="color: #15803d; text-decoration: underline;">Change number/email</a>
+                                <a href="javascript:void(0)" onclick="resetPhoneOtpStep()" style="color: #15803d; text-decoration: underline;">Change mobile number</a>
                             </div>
                         </div>
                         <div class="form-group">
                             <label>Enter 6-Digit OTP</label>
-                            <input type="text" id="otpInputCode" maxlength="6" placeholder="• • • • • •" style="letter-spacing: 6px; font-size: 1.3rem; font-weight: bold; text-align: center;" onkeydown="if(event.key==='Enter') verifyOtpAndLogin()">
+                            <input type="text" id="otpInputCode" maxlength="6" placeholder="• • • • • •" style="letter-spacing: 6px; font-size: 1.3rem; font-weight: bold; text-align: center;" onkeydown="if(event.key==='Enter') verifyFirebaseOtp()">
                         </div>
-                        <button class="btn btn-success btn-block" id="btnVerifyOtp" onclick="verifyOtpAndLogin()">
+                        <button class="btn btn-success btn-block" id="btnVerifyPhoneOtp" onclick="verifyFirebaseOtp()">
                             <i class="fas fa-check-circle"></i> Verify &amp; Login
                         </button>
                         <div style="text-align: center; margin-top: 15px;">
-                            <button id="resendOtpBtn" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px;" onclick="requestOtp()" disabled>
+                            <button id="resendOtpBtn" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px;" onclick="requestFirebaseOtp()" disabled>
                                 Resend OTP in <span id="otpTimer">60</span>s
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Register Form (simplified: only 3 mandatory fields) -->
+                <!-- Email Passwordless Magic Link Form (Firebase) -->
+                <div class="auth-form" id="magicForm">
+                    <div id="magicStep1">
+                        <div class="form-group">
+                            <label><i class="fas fa-envelope"></i> Email Address</label>
+                            <input type="email" id="magicEmailInput" placeholder="Enter your email address" onkeydown="if(event.key==='Enter') requestFirebaseMagicLink()">
+                            <small style="color: #8a7362; font-size: 0.78rem; display: block; margin-top: 5px;">
+                                <i class="fas fa-magic" style="color: #b8860b;"></i> Passwordless login: We will email you a secure 1-click sign-in link.
+                            </small>
+                        </div>
+                        <button class="btn btn-primary btn-block" id="btnSendMagicLink" onclick="requestFirebaseMagicLink()">
+                            <i class="fas fa-paper-plane"></i> Send Magic Sign-In Link
+                        </button>
+                    </div>
+
+                    <div id="magicStep2" style="display: none;">
+                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 18px; text-align: center;">
+                            <div style="font-size: 2.2rem; color: #2563eb; margin-bottom: 8px;"><i class="fas fa-envelope-open-text"></i></div>
+                            <h4 style="color: #1e3a8a; margin-bottom: 6px;">Check Your Inbox!</h4>
+                            <p style="font-size: 0.85rem; color: #1e40af; margin-bottom: 14px; line-height: 1.4;">
+                                We sent a secure 1-click sign-in link to <br><strong id="magicEmailSentTo"></strong>. Open the email and click the link to log in.
+                            </p>
+                            <button class="btn btn-outline" style="font-size: 0.82rem; padding: 6px 14px;" onclick="resetMagicStep()">
+                                <i class="fas fa-arrow-left"></i> Change email address
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="auth-form" id="registerForm">
                     <div class="form-group">
                         <label>Full Name</label>
@@ -280,123 +318,128 @@
             } else if (tab === 'otp') {
                 if (tabs[1]) tabs[1].classList.add('active');
                 document.getElementById('otpForm').classList.add('active');
-            } else {
+            } else if (tab === 'magic') {
                 if (tabs[2]) tabs[2].classList.add('active');
+                document.getElementById('magicForm').classList.add('active');
+            } else {
+                if (tabs[3]) tabs[3].classList.add('active');
                 document.getElementById('registerForm').classList.add('active');
             }
         }
 
-        // ==================== OTP AUTH LOGIC ====================
+        // ==================== FIREBASE PHONE OTP LOGIC ====================
         let otpCountdown = 60;
         let otpTimerInterval = null;
 
-        function resetOtpStep() {
+        function resetPhoneOtpStep() {
             clearInterval(otpTimerInterval);
             document.getElementById('otpStep1').style.display = 'block';
             document.getElementById('otpStep2').style.display = 'none';
-            const btn = document.getElementById('btnSendOtp');
+            const btn = document.getElementById('btnSendPhoneOtp');
             if (btn) btn.disabled = false;
         }
 
-        function startOtpTimer() {
+        function startPhoneOtpTimer() {
             clearInterval(otpTimerInterval);
             otpCountdown = 60;
             const resendBtn = document.getElementById('resendOtpBtn');
-            resendBtn.disabled = true;
-            resendBtn.innerHTML = 'Resend OTP in <span id="otpTimer">60</span>s';
+            if (resendBtn) {
+                resendBtn.disabled = true;
+                resendBtn.innerHTML = 'Resend OTP in <span id="otpTimer">60</span>s';
+            }
             otpTimerInterval = setInterval(() => {
                 otpCountdown--;
                 const curTimer = document.getElementById('otpTimer');
                 if (curTimer) curTimer.textContent = otpCountdown;
                 if (otpCountdown <= 0) {
                     clearInterval(otpTimerInterval);
-                    resendBtn.disabled = false;
-                    resendBtn.innerHTML = '<i class="fas fa-redo"></i> Resend OTP';
+                    if (resendBtn) {
+                        resendBtn.disabled = false;
+                        resendBtn.innerHTML = '<i class="fas fa-redo"></i> Resend OTP';
+                    }
                 }
             }, 1000);
         }
 
-        async function requestOtp() {
-            const ident = document.getElementById('otpIdentifier').value.trim();
-            if (!ident) {
-                showToast('Please enter your mobile number or email!', 'error');
+        async function requestFirebaseOtp() {
+            const phoneInput = document.getElementById('otpPhoneInput');
+            const rawPhone = phoneInput ? phoneInput.value.trim() : '';
+            if (!rawPhone) {
+                showToast('Please enter your 10-digit mobile number!', 'error');
                 return;
             }
-            const btn = document.getElementById('btnSendOtp');
+            const cleanPhone = rawPhone.replace(/\D/g, '');
+            if (cleanPhone.length < 10) {
+                showToast('Please enter a valid 10-digit mobile number!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnSendPhoneOtp');
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending OTP...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending SMS OTP...';
             }
-            try {
-                const res = await fetch('/api/customer/send-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identifier: ident })
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || 'Failed to send OTP');
 
+            try {
+                const fullPhone = cleanPhone.length === 10 ? '+91' + cleanPhone : '+' + cleanPhone;
+                if (typeof sendFirebasePhoneOtp !== 'function') {
+                    throw new Error('Firebase Auth is still initializing. Please refresh the page.');
+                }
+                const res = await sendFirebasePhoneOtp(fullPhone, 'recaptcha-container');
                 document.getElementById('otpStep1').style.display = 'none';
                 document.getElementById('otpStep2').style.display = 'block';
                 
                 const noticeEl = document.getElementById('otpSentNotice');
-                const inputEl = document.getElementById('otpInputCode');
-                
-                if (result.otp_code) {
-                    noticeEl.innerHTML = `
-                        <div style="font-weight: 700; color: #b45309; margin-bottom: 4px;">
-                            <i class="fas fa-exclamation-triangle"></i> Twilio / SMTP Notice:
-                        </div>
-                        <div style="font-size: 0.82rem; color: #78350f; line-height: 1.4; margin-bottom: 8px;">
-                            ${escapeHtml(result.message)}
-                        </div>
-                        <div style="background: #ffffff; border: 1.5px dashed #16a34a; border-radius: 6px; padding: 6px 12px; display: inline-block;">
-                            Your Code: <strong style="font-size: 1.15rem; color: #15803d; letter-spacing: 2px;">${result.otp_code}</strong> (Auto-filled)
-                        </div>
-                    `;
-                    inputEl.value = result.otp_code;
-                } else {
-                    noticeEl.textContent = result.message || 'OTP sent via SMS to your phone!';
-                    inputEl.value = '';
+                if (noticeEl) {
+                    noticeEl.textContent = 'SMS OTP sent to ' + fullPhone + '!';
                 }
-                
-                inputEl.focus();
-                startOtpTimer();
-                showToast(result.otp_code ? 'Test OTP auto-filled!' : 'OTP sent successfully!');
-            } catch (e) {
-                showToast(e.message, 'error');
+                const inputEl = document.getElementById('otpInputCode');
+                if (inputEl) {
+                    inputEl.value = '';
+                    inputEl.focus();
+                }
+                startPhoneOtpTimer();
+                showToast('Real SMS OTP sent to ' + fullPhone + '!');
+            } catch (err) {
+                console.error('Firebase Phone OTP Error:', err);
+                let msg = err.message || 'Failed to send SMS OTP. Please check your number.';
+                if (err.code === 'auth/invalid-phone-number') {
+                    msg = 'Invalid phone number format.';
+                } else if (err.code === 'auth/too-many-requests') {
+                    msg = 'Too many requests. Please wait a short while and try again.';
+                } else if (err.code === 'auth/quota-exceeded') {
+                    msg = 'SMS quota reached. Please try again later.';
+                } else if (err.code === 'auth/billing-not-enabled') {
+                    msg = 'Firebase Phone Auth configuration required: check Firebase Console.';
+                }
+                showToast(msg, 'error');
             } finally {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP';
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP via SMS';
                 }
             }
         }
 
-        async function verifyOtpAndLogin() {
-            const ident = document.getElementById('otpIdentifier').value.trim();
-            const otp = document.getElementById('otpInputCode').value.trim();
-            if (!ident || !otp) {
-                showToast('Please enter the 6-digit OTP!', 'error');
+        async function verifyFirebaseOtp() {
+            const otpInput = document.getElementById('otpInputCode');
+            const code = otpInput ? otpInput.value.trim() : '';
+            if (!code || code.length < 6) {
+                showToast('Please enter the 6-digit OTP code!', 'error');
                 return;
             }
-            const btn = document.getElementById('btnVerifyOtp');
+
+            const btn = document.getElementById('btnVerifyPhoneOtp');
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
             }
-            try {
-                const res = await fetch('/api/customer/verify-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ identifier: ident, otp: otp })
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || 'Invalid or expired OTP');
 
-                if (result.token) {
-                    localStorage.setItem('jainzee_token', result.token);
+            try {
+                if (typeof verifyFirebasePhoneOtp !== 'function') {
+                    throw new Error('Firebase Auth is still initializing. Please refresh.');
                 }
+                const result = await verifyFirebasePhoneOtp(code);
                 clearInterval(otpTimerInterval);
                 showToast('Login successful! Welcome ' + (result.customer ? result.customer.name : '') + '!');
                 const redir = new URLSearchParams(window.location.search).get('redirect');
@@ -405,12 +448,61 @@
                     return;
                 }
                 loadCustomerDashboard();
-            } catch (e) {
-                showToast(e.message, 'error');
+            } catch (err) {
+                console.error('Firebase OTP Verify Error:', err);
+                let msg = err.message || 'Invalid or expired OTP code.';
+                if (err.code === 'auth/invalid-verification-code') {
+                    msg = 'Incorrect OTP code. Please check the SMS and re-enter.';
+                } else if (err.code === 'auth/code-expired') {
+                    msg = 'This OTP has expired. Please click Resend OTP.';
+                }
+                showToast(msg, 'error');
             } finally {
                 if (btn) {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify &amp; Login';
+                }
+            }
+        }
+
+        // ==================== EMAIL MAGIC LINK LOGIC ====================
+        function resetMagicStep() {
+            document.getElementById('magicStep1').style.display = 'block';
+            document.getElementById('magicStep2').style.display = 'none';
+            const btn = document.getElementById('btnSendMagicLink');
+            if (btn) btn.disabled = false;
+        }
+
+        async function requestFirebaseMagicLink() {
+            const emailInput = document.getElementById('magicEmailInput');
+            const email = emailInput ? emailInput.value.trim() : '';
+            if (!email || !email.includes('@')) {
+                showToast('Please enter a valid email address!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnSendMagicLink');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending Magic Link...';
+            }
+
+            try {
+                if (typeof sendFirebaseEmailLink !== 'function') {
+                    throw new Error('Firebase Auth is still initializing. Please refresh.');
+                }
+                await sendFirebaseEmailLink(email);
+                document.getElementById('magicStep1').style.display = 'none';
+                document.getElementById('magicStep2').style.display = 'block';
+                document.getElementById('magicEmailSentTo').textContent = email;
+                showToast('Magic sign-in link sent! Please check your email.');
+            } catch (err) {
+                console.error('Firebase Email Link Error:', err);
+                showToast(err.message || 'Failed to send email link. Please try again.', 'error');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Magic Sign-In Link';
                 }
             }
         }
@@ -699,6 +791,24 @@
             const flashMsg = urlParams.get('msg');
             if (flashMsg) {
                 if (typeof showToast === 'function') showToast(flashMsg, 'error');
+            }
+
+            // Check if returning from Firebase Email Magic Link
+            if (typeof handleFirebaseEmailLinkSignIn === 'function') {
+                handleFirebaseEmailLinkSignIn().then(result => {
+                    if (result && result.success) {
+                        showToast('Welcome back, ' + (result.customer ? result.customer.name : 'Customer') + '! Logged in successfully.');
+                        const redir = new URLSearchParams(window.location.search).get('redirect');
+                        if (redir === 'checkout') {
+                            window.location.href = '/checkout';
+                            return;
+                        }
+                        loadCustomerDashboard();
+                    }
+                }).catch(err => {
+                    console.error('Magic link sign-in error:', err);
+                    showToast(err.message || 'Email sign-in link error. Please request a new link.', 'error');
+                });
             }
             loadCustomerDashboard();
         });

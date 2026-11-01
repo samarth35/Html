@@ -1458,6 +1458,101 @@ def api_customer_verify_otp():
     })
 
 
+
+
+@app.route('/api/customer/firebase-login', methods=['POST'])
+def api_customer_firebase_login():
+    """Verify Firebase-authenticated customer (Phone OTP or Email Magic Link) and create/sync session"""
+    data = request.get_json() or {}
+    phone = (data.get('phone') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    uid = (data.get('uid') or '').strip()
+    name = (data.get('name') or '').strip()
+
+    if not phone and not email and not uid:
+        return jsonify({'error': 'No authentication credentials provided'}), 400
+
+    clean_phone = ''
+    if phone:
+        digits = re.sub(r'\D', '', phone)
+        if len(digits) == 12 and digits.startswith('91'):
+            clean_phone = digits[2:]
+        elif len(digits) == 10:
+            clean_phone = digits
+        else:
+            clean_phone = digits
+
+    conn = get_db()
+    customer = None
+    if clean_phone:
+        customer = conn.execute(
+            'SELECT * FROM customers WHERE phone=? OR phone=? OR phone=?',
+            (clean_phone, phone, '+91' + clean_phone)
+        ).fetchone()
+
+    if not customer and email:
+        customer = conn.execute('SELECT * FROM customers WHERE email=?', (email,)).fetchone()
+
+    if not customer:
+        customer_name = name
+        if not customer_name:
+            if clean_phone:
+                customer_name = f'Customer {clean_phone[-4:] if len(clean_phone) >= 4 else clean_phone}'
+            elif email:
+                customer_name = email.split('@')[0].capitalize()
+            else:
+                customer_name = 'Customer'
+
+        assigned_phone = clean_phone or phone
+        cur = conn.execute(
+            'INSERT INTO customers (name, phone, email, password_hash) VALUES (?, ?, ?, ?)',
+            (customer_name, assigned_phone, email, generate_password_hash(secrets.token_urlsafe(16)))
+        )
+        conn.commit()
+        customer = {
+            'id': cur.lastrowid,
+            'name': customer_name,
+            'phone': assigned_phone,
+            'email': email
+        }
+    else:
+        updates = []
+        params = []
+        if email and not customer['email']:
+            updates.append('email=?')
+            params.append(email)
+        if clean_phone and not customer['phone']:
+            updates.append('phone=?')
+            params.append(clean_phone)
+        if updates:
+            params.append(customer['id'])
+            set_clause = ', '.join(updates)
+            conn.execute(f"UPDATE customers SET {set_clause} WHERE id=?", tuple(params))
+            conn.commit()
+
+    cust_id = customer['id']
+    cust_name = customer['name']
+    cust_phone = customer['phone'] if hasattr(customer, '__getitem__') else ''
+    cust_email = customer['email'] if hasattr(customer, '__getitem__') else ''
+
+    session.permanent = True
+    session['customer_id'] = cust_id
+    session['customer_name'] = cust_name
+    conn.close()
+
+    token = generate_jwt_token(cust_id, cust_name)
+    return jsonify({
+        'success': True,
+        'customer': {
+            'id': cust_id,
+            'name': cust_name,
+            'phone': cust_phone,
+            'email': cust_email
+        },
+        'token': token
+    })
+
+
 # ---------------- GOOGLE OAUTH =================
 
 @app.route('/api/auth/google')
