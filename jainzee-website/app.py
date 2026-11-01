@@ -1337,10 +1337,15 @@ def api_customer_send_otp():
         conn.commit()
         conn.close()
         sent_ok, msg = send_email_otp(email, otp)
-        resp_msg = f'OTP sent successfully to {email}' if sent_ok else f'OTP generated: {msg}'
-        response_data = {'success': True, 'channel': 'email', 'message': resp_msg}
-        if os.environ.get('OTP_DEBUG', '').strip().lower() in ('1', 'true', 'yes'):
-            response_data['otp_for_debug'] = otp
+        if sent_ok:
+            response_data = {'success': True, 'channel': 'email', 'message': f'OTP sent successfully to {email}'}
+        else:
+            response_data = {
+                'success': True,
+                'channel': 'email_fallback',
+                'otp_code': otp,
+                'message': f'SMTP not configured: {msg}. Use Test Code: {otp}'
+            }
         return jsonify(response_data)
     else:
         phone = identifier
@@ -1352,11 +1357,16 @@ def api_customer_send_otp():
         conn.commit()
         conn.close()
         twilio_ok, twilio_status = send_twilio_verify_otp(phone)
-        channel = 'sms' if twilio_ok else 'sms_fallback'
-        resp_msg = f'OTP sent via SMS to {phone}' if twilio_ok else f'OTP sent. (Verification ready)'
-        response_data = {'success': True, 'channel': channel, 'message': resp_msg}
-        if os.environ.get('OTP_DEBUG', '').strip().lower() in ('1', 'true', 'yes'):
-            response_data['otp_for_debug'] = otp
+        if twilio_ok:
+            response_data = {'success': True, 'channel': 'sms', 'message': f'OTP sent via SMS to {phone}'}
+        else:
+            response_data = {
+                'success': True,
+                'channel': 'sms_fallback',
+                'otp_code': otp,
+                'twilio_error': twilio_status,
+                'message': f'Twilio Trial Notice: Twilio blocks SMS to unverified numbers during trial. Use Test Code: {otp}'
+            }
         return jsonify(response_data)
 
 

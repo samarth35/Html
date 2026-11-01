@@ -338,11 +338,31 @@
 
                 document.getElementById('otpStep1').style.display = 'none';
                 document.getElementById('otpStep2').style.display = 'block';
-                document.getElementById('otpSentNotice').textContent = result.message || 'OTP sent successfully!';
-                document.getElementById('otpInputCode').value = '';
-                document.getElementById('otpInputCode').focus();
+                
+                const noticeEl = document.getElementById('otpSentNotice');
+                const inputEl = document.getElementById('otpInputCode');
+                
+                if (result.otp_code) {
+                    noticeEl.innerHTML = `
+                        <div style="font-weight: 700; color: #b45309; margin-bottom: 4px;">
+                            <i class="fas fa-exclamation-triangle"></i> Twilio / SMTP Notice:
+                        </div>
+                        <div style="font-size: 0.82rem; color: #78350f; line-height: 1.4; margin-bottom: 8px;">
+                            ${escapeHtml(result.message)}
+                        </div>
+                        <div style="background: #ffffff; border: 1.5px dashed #16a34a; border-radius: 6px; padding: 6px 12px; display: inline-block;">
+                            Your Code: <strong style="font-size: 1.15rem; color: #15803d; letter-spacing: 2px;">${result.otp_code}</strong> (Auto-filled)
+                        </div>
+                    `;
+                    inputEl.value = result.otp_code;
+                } else {
+                    noticeEl.textContent = result.message || 'OTP sent via SMS to your phone!';
+                    inputEl.value = '';
+                }
+                
+                inputEl.focus();
                 startOtpTimer();
-                showToast('OTP sent successfully!');
+                showToast(result.otp_code ? 'Test OTP auto-filled!' : 'OTP sent successfully!');
             } catch (e) {
                 showToast(e.message, 'error');
             } finally {
