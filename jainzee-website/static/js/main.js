@@ -850,13 +850,22 @@ async function fetchProducts() {
 // ==================== APPLY SITE DATA ====================
 
 function applySiteData() {
-    // Shop name
-    setText('heroShopName', currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en);
-    setText('navShopName', currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en);
-    setText('mobileNavShopName', currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en);
-    setText('mobileMenuTitle', currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en);
-    setText('footerShopName', currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en);
-    setText('footerName', currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en);
+    // Shop name with guaranteed trademark (™)
+    function formatWithTm(name, isHi) {
+        if (!name) return isHi ? 'जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' : 'Jainzee™ Food Processing Industries';
+        if (!name.includes('™')) {
+            name = isHi ? name.replace(/जैनज़ी/g, 'जैनज़ी™') : name.replace(/Jainzee/g, 'Jainzee™');
+        }
+        return name;
+    }
+    const isHi = (currentLang === 'hi');
+    const dynamicShopName = formatWithTm(isHi ? siteData.shop_name_hi : siteData.shop_name_en, isHi);
+    setText('heroShopName', dynamicShopName);
+    setText('navShopName', dynamicShopName);
+    setText('mobileNavShopName', dynamicShopName);
+    setText('mobileMenuTitle', dynamicShopName);
+    setText('footerShopName', dynamicShopName);
+    setText('footerName', dynamicShopName);
     // Only update the page title when a VALID shop name exists.
     // Never allow "undefined" or empty values to replace the default title.
     const shopNameForTitle = currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en;

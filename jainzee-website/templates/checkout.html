@@ -50,9 +50,9 @@
             </div>
         </div>
         
-        <!-- MOBILE: Login/Register top bar -->
-        <div class="mobile-login-bar" id="mobileLoginBar">
-            <a href="/customer" id="mobileLoginLink"><i class="fas fa-user"></i> <span data-i18n="customer_login">Login / Register</span></a>
+        <!-- MOBILE: Safe Guest Checkout Announcement -->
+        <div class="mobile-login-bar" id="mobileLoginBar" style="background: linear-gradient(90deg, #166534, #15803d); font-size: 0.82rem; padding: 8px 14px; text-align: center;">
+            <span style="color: #ffffff; font-weight: 600;"><i class="fas fa-shield-alt"></i> 100% Safe Guest Checkout • No Login / OTP Required</span>
         </div>
         
         <!-- MOBILE: Main row with hamburger, logo, cart, orders -->
@@ -143,6 +143,22 @@
                         <h3 style="color: #1a1a1a; font-family: var(--font-display); font-size: 1.5rem; margin-bottom: 25px;">
                             <i class="fas fa-user"></i> <span data-i18n="checkout_title">Checkout</span>
                         </h3>
+                        <!-- Guest Checkout Active Badge -->
+                        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1.5px solid #86efac; border-radius: 14px; padding: 14px 18px; margin-bottom: 24px; display: flex; align-items: center; gap: 14px; box-shadow: 0 2px 8px rgba(22,163,74,0.08);">
+                            <div style="width: 42px; height: 42px; border-radius: 50%; background: #16a34a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(22,163,74,0.3);">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <div>
+                                <div style="color: #14532d; font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    Guest Checkout Active
+                                    <span style="background: #15803d; color: #ffffff; font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 600;">No Login Required</span>
+                                </div>
+                                <div style="color: #166534; font-size: 0.84rem; margin-top: 3px;">
+                                    Apna Name, Mobile number aur Delivery Address enter karke direct order place karein (COD ya Razorpay).
+                                </div>
+                            </div>
+                        </div>
+
 
                         <div style="margin-bottom: 20px;">
                             <label style="display: block; color: #1a1a1a; font-weight: 600; margin-bottom: 8px;" data-i18n="checkout_name">Full Name</label>
@@ -839,12 +855,24 @@
 
 const name = document.getElementById('checkoutName').value.trim();
             const phone = document.getElementById('checkoutPhone').value.trim();
-            const address = document.getElementById('checkoutAddress').value.trim();
+            let address = document.getElementById('checkoutAddress').value.trim();
+            const pincode = document.getElementById('checkoutPincode') ? document.getElementById('checkoutPincode').value.trim() : '';
             const paymentMethod = document.querySelector('input[name="payment"]:checked') ? document.querySelector('input[name="payment"]:checked').value : 'cod';
 
             if (!name || !phone || !address) {
-                alert(t('checkout_name') + ' ' + t('checkout_phone') + ' ' + t('checkout_address') + ' ' + (currentLangCheckout === 'hi' ? 'आवश्यक हैं' : 'are required'));
+                alert(t('checkout_name') + ', ' + t('checkout_phone') + ' ' + (currentLangCheckout === 'hi' ? 'और पता आवश्यक हैं' : 'and address are required'));
                 return;
+            }
+
+            const cleanDigits = phone.replace(/\D/g, '');
+            if (cleanDigits.length < 10) {
+                alert(currentLangCheckout === 'hi' ? 'कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें' : 'Please enter a valid 10-digit mobile number');
+                return;
+            }
+
+            // Append pincode to address if not already present
+            if (pincode && !address.includes(pincode)) {
+                address = address + ' - Pincode: ' + pincode;
             }
 
             try {

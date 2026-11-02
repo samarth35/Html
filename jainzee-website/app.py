@@ -670,8 +670,8 @@ def init_db():
                     (generate_password_hash(admin_password),))
 
     default_settings = {
-        'shop_name_en': 'Jainzee Food Processing Industries',
-        'shop_name_hi': 'जैनज़ी फूड प्रोसेसिंग इंडस्ट्रीज़',
+        'shop_name_en': 'Jainzee™ Food Processing Industries',
+        'shop_name_hi': 'जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़',
         'tagline_en': 'Pure & Premium Dry Fruits',
         'tagline_hi': 'शुद्ध और प्रीमियम ड्राई फ्रूट्स',
         'address_en': 'Siyaganj, Indore, Madhya Pradesh 452001',
@@ -707,6 +707,9 @@ def init_db():
     # UPDATE existing phone/whatsapp if they still have placeholder
     cur.execute("UPDATE settings SET value='+91 97529 37733' WHERE key='phone' AND value='+91 98260 00000'")
     cur.execute("UPDATE settings SET value='919752937733' WHERE key='whatsapp' AND value='919826000000'")
+    cur.execute("UPDATE settings SET value='Jainzee™ Food Processing Industries' WHERE key='shop_name_en' AND value NOT LIKE '%™%'")
+    cur.execute("UPDATE settings SET value='जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' WHERE key='shop_name_hi' AND value NOT LIKE '%™%'")
+
     cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_id' AND (value='' OR value IS NULL)", (os.environ.get('RAZORPAY_KEY_ID',''),))
     cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_secret' AND (value='' OR value IS NULL)", (os.environ.get('RAZORPAY_KEY_SECRET',''),))
 
