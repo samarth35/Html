@@ -1119,6 +1119,7 @@ PUBLIC_SETTINGS_KEYS = {
     'hours_en', 'hours_hi', 'about_en', 'about_hi', 'logo',
     'upi_id', 'upi_qr_data', 'homepage_video_url',
     'shipping_charge', 'free_shipping_min', 'razorpay_key_id',
+    'fssai', 'trademark',
 }
 
 @app.route('/api/site')
@@ -2610,7 +2611,7 @@ def api_order_invoice(order_id):
     )
     
     address = settings.get('address_en', 'Siyaganj, Indore, Madhya Pradesh 452001')
-    phone = settings.get('phone', '+91 98260 00000')
+    phone = settings.get('phone', '+91 97529 37733')
     email = settings.get('email', 'info@jainzee.in')
     
     elements.append(Paragraph(f"Address: {address}", contact_style))

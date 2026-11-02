@@ -97,7 +97,7 @@ Shows total sales, total/pending/delivered orders, low-stock count, a recent-ord
 
 ## ☁️ Deploy to Vercel (Production)
 
-**Live site:** https://html-jainzee.vercel.app
+**Live site:** https://jainzeefoods.vercel.app
 
 1. Push this folder to a GitHub repository:
 ```bash
@@ -128,9 +128,9 @@ git push -u origin main
 
 6. Click **"Deploy"**. The first build takes roughly 1–3 minutes.
 
-7. Your website is LIVE at **https://html-jainzee.vercel.app** 🎉
+7. Your website is LIVE at **https://jainzeefoods.vercel.app** 🎉
 
-> **Google Sign-In:** add `https://html-jainzee.vercel.app/api/auth/google/callback`
+> **Google Sign-In:** add `https://jainzeefoods.vercel.app/api/auth/google/callback`
 > to the **Authorized redirect URIs** in the Google Cloud Console.
 
 > **Media uploads:** Vercel's filesystem is read-only/ephemeral, so files cannot be saved
