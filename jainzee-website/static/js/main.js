@@ -1,3 +1,9 @@
+function setHtml(id, html) {
+    const el = document.getElementById(id);
+    if (el && html !== undefined && html !== null && String(html).trim() !== '') {
+        el.innerHTML = html;
+    }
+}
 // ==================== JAINZEE WEBSITE - MAIN JS ====================
 
 let siteData = {};
@@ -853,10 +859,10 @@ function applySiteData() {
     // Shop name with guaranteed trademark (™)
     function formatWithTm(name, isHi) {
         if (!name) return isHi ? 'जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' : 'Jainzee™ Food Processing Industries';
-        if (!name.includes('™')) {
-            name = isHi ? name.replace(/जैनज़ी/g, 'जैनज़ी™') : name.replace(/Jainzee/g, 'Jainzee™');
-        }
-        return name;
+        // Strip any corrupted 'T' from JainzeeT or old artifacts
+        let clean = name.replace(/JainzeeT/g, 'Jainzee').replace(/Jainzee™/g, 'Jainzee');
+        clean = clean.replace(/जैनज़ी™/g, 'जैनज़ी');
+        return isHi ? clean.replace(/जैनज़ी/g, 'जैनज़ी™') : clean.replace(/Jainzee/g, 'Jainzee™');
     }
     const isHi = (currentLang === 'hi');
     const dynamicShopName = formatWithTm(isHi ? siteData.shop_name_hi : siteData.shop_name_en, isHi);
