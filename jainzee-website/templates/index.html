@@ -13,7 +13,7 @@
     <meta property="og:url" content="https://jainzeefoods.vercel.app/" />
     <link rel="canonical" href="https://jainzeefoods.vercel.app/" />
     <title>Jainzee™ Food Processing Industries - Dry Fruits</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=6.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Mukta:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -140,15 +140,15 @@
             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(18,18,18,0.6); z-index: 2; pointer-events: none;"></div>
         </div>
         
-        <div class="hero-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0 auto; width: 100%;">
-            <img id="heroLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="hero-logo" style="display: block !important; margin: 0 auto 12px !important; visibility: visible !important; opacity: 1 !important;">
-            <h1 id="heroShopName" style="text-align: center;">Jainzee<sup>&trade;</sup> Food Processing Industries</h1>
-            <p id="heroTagline" style="text-align: center;">Pure & Premium Dry Fruits</p>
+        <div class="hero-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0 auto; width: 100%; max-width: 900px;">
+            <img id="heroLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="hero-logo" style="display: block !important; margin: 0 auto 14px !important; visibility: visible !important; opacity: 1 !important;">
+            <h1 id="heroShopName" style="display: block !important; width: 100% !important; text-align: center !important; margin: 0 0 10px 0 !important;">Jainzee<sup>&trade;</sup> Food Processing Industries</h1>
+            <p id="heroTagline" style="display: block !important; width: 100% !important; text-align: center !important; margin: 0 auto 16px auto !important;">Pure & Premium Dry Fruits</p>
 
-            <!-- Official FSSAI & Quality Trust Badge (Perfect Center) -->
-            <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin: 12px 0 24px; text-align: center;">
-                <div class="hero-fssai-badge" style="display: inline-flex; align-items: center; justify-content: center; gap: 14px; background: rgba(255, 255, 255, 0.98); padding: 8px 24px; border-radius: 50px; box-shadow: 0 8px 25px rgba(0,0,0,0.35); border: 2px solid #ffd700;">
-                    <img src="/static/images/fssai-logo.png" alt="FSSAI" style="height: 32px; width: auto; object-fit: contain; display: block;">
+            <!-- Official FSSAI & Quality Trust Badge (Dead Center Row) -->
+            <div style="width: 100% !important; display: flex !important; justify-content: center !important; align-items: center !important; margin: 0 auto 24px auto !important; text-align: center !important;">
+                <div class="hero-fssai-badge" style="display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 14px !important; background: rgba(255, 255, 255, 0.98) !important; padding: 8px 24px !important; border-radius: 50px !important; box-shadow: 0 8px 25px rgba(0,0,0,0.35) !important; border: 2px solid #ffd700 !important;">
+                    <img src="/static/images/fssai-logo.png" alt="FSSAI" style="height: 32px !important; width: auto !important; object-fit: contain !important; display: block !important;">
                     <span style="height: 24px; width: 1.5px; background: #cbd5e1; display: inline-block;"></span>
                     <div style="text-align: left; line-height: 1.25;">
                         <div style="color: #15803d; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 5px;">
@@ -161,7 +161,7 @@
                 </div>
             </div>
 
-            <div class="hero-buttons" style="display: flex; justify-content: center; align-items: center; gap: 18px; margin: 0 auto; flex-wrap: wrap;">
+            <div class="hero-buttons" style="display: flex !important; justify-content: center !important; align-items: center !important; gap: 18px !important; margin: 0 auto !important; width: 100% !important; flex-wrap: wrap !important;">
                 <a href="#products" class="btn btn-primary" data-i18n="explore_products">Explore Products</a>
                 <a href="#contact" class="btn btn-outline" data-i18n="contact_us">Contact Us</a>
             </div>
