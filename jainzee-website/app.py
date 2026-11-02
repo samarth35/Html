@@ -28,12 +28,31 @@ env_file = os.path.join(BASE_DIR, '.env')
 if os.path.exists(env_file):
     load_dotenv(env_file)
 load_dotenv()
+DATABASE_URL = (
+    os.environ.get('DATABASE_URL') or 
+    os.environ.get('POSTGRES_URL') or 
+    os.environ.get('POSTGRES_PRISMA_URL') or 
+    os.environ.get('POSTGRES_URL_NON_POOLING') or 
+    ''
+).strip()
+USE_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
+
 # Allow tests / deployments to override the database location via environment.
 DB_PATH = os.environ.get('JAINZEE_DB_PATH', os.path.join(BASE_DIR, 'jainzee.db'))
-# PostgreSQL-ready configuration: set DATABASE_URL in production to use
-# Postgres; leave unset (or use JAINZEE_DB_PATH) for local SQLite development.
-DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
-USE_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
+
+# On Vercel / serverless: filesystem is read-only. Copy SQLite to tempdir so writes succeed!
+if (os.environ.get('VERCEL') == '1' or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')) and not USE_POSTGRES:
+    import tempfile
+    import shutil
+    tmp_db = os.path.join(tempfile.gettempdir(), 'jainzee.db')
+    if not os.path.exists(tmp_db):
+        src_db = os.path.join(BASE_DIR, 'jainzee.db')
+        if os.path.exists(src_db):
+            try:
+                shutil.copy2(src_db, tmp_db)
+            except Exception as e:
+                print(f"[DB COPY WARNING] {e}")
+    DB_PATH = tmp_db
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads')
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg',
                             'avif', 'bmp', 'tiff', 'tif', 'heic', 'heif'}
@@ -487,12 +506,25 @@ def get_db():
         url = DATABASE_URL
         if url.startswith('postgres://'):
             url = url.replace('postgres://', 'postgresql://', 1)
-        conn = psycopg2.connect(url)
-        conn.cursor_factory = psycopg2.extras.RealDictCursor
-        return PostgresConnection(conn)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+        if 'sslmode' not in url and 'localhost' not in url and '127.0.0.1' not in url:
+            sep = '&' if '?' in url else '?'
+            url = f"{url}{sep}sslmode=require"
+        try:
+            conn = psycopg2.connect(url, connect_timeout=10)
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            return PostgresConnection(conn)
+        except Exception as e:
+            print(f"[POSTGRES ERROR] {e}. Falling back to SQLite.")
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        conn.row_factory = sqlite3.Row
+        return conn
+    except Exception as e:
+        import tempfile
+        tmp_db = os.path.join(tempfile.gettempdir(), 'jainzee.db')
+        conn = sqlite3.connect(tmp_db, timeout=10)
+        conn.row_factory = sqlite3.Row
+        return conn
 
 def init_db():
     conn = get_db()
@@ -4119,8 +4151,11 @@ def handle_500(e):
 
 # ---------------- STARTUP ----------------
 
-# Initialize database on module load (required for Gunicorn deployment)
-init_db()
+# Initialize database on module load (safely guarded for serverless)
+try:
+    init_db()
+except Exception as e:
+    print(f"[INIT_DB STARTUP WARNING]: {e}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
