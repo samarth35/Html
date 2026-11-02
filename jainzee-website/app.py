@@ -897,6 +897,10 @@ def csrf_set_cookie(response):
     token = request.cookies.get('csrf_token') or getattr(g, 'csrf_token', None)
     if token:
         response.set_cookie('csrf_token', token, samesite='Lax', httponly=False)
+    if response.content_type and 'text/html' in response.content_type:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
     return response
 
 def _csrf_token():
