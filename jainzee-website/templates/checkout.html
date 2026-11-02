@@ -13,18 +13,6 @@
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
-    <!-- ===== TOP FSSAI TRUST HIGHLIGHT BAR ===== -->
-    <div class="top-fssai-trust-bar" style="background: linear-gradient(90deg, #14532d 0%, #15803d 50%, #166534 100%); color: #ffffff; padding: 7px 16px; font-size: 0.82rem; border-bottom: 1.5px solid #eab308; display: flex; justify-content: center; align-items: center; gap: 12px; text-align: center; flex-wrap: wrap; z-index: 1000; position: relative;">
-        <span style="background: #ffffff; color: #14532d; font-weight: 900; font-size: 0.82rem; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px; font-family: sans-serif;">fssai</span>
-        <span style="font-weight: 700; color: #fef08a; letter-spacing: 0.3px;">
-            <i class="fas fa-shield-halved" style="color: #ffd700;"></i> FSSAI Certified Unit: Lic. No. 11423850001080
-        </span>
-        <span style="color: rgba(255,255,255,0.7);">&bull;</span>
-        <span style="color: #ffffff; font-weight: 500;">
-            100% Pure, Hygienic &amp; Chemical-Free Dry Fruits &bull; Govt. Registered Trademark Jainzee™
-        </span>
-    </div>
-
     <!-- ===== NAVBAR ===== -->
     <nav class="navbar">
         <div class="nav-container">
@@ -244,6 +232,16 @@
                         <button id="btnPlaceOrder" class="btn btn-primary" style="width: 100%; font-size: 1.15rem; padding: 18px; background: #16a34a; border-color: #16a34a; box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);" onclick="placeOrder()">
                             <i class="fas fa-lock" id="btnPlaceOrderIcon"></i> <span id="btnPlaceOrderText">Proceed to Pay via Razorpay</span>
                         </button>
+
+                        <!-- Official FSSAI Guarantee Badge -->
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 12px 18px; margin-top: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                            <img src="/static/images/fssai-logo.png" alt="FSSAI" style="height: 30px; width: auto; display: block;">
+                            <span style="height: 22px; width: 1.5px; background: #e2e8f0; display: inline-block;"></span>
+                            <div style="font-size: 0.82rem; color: #334155; line-height: 1.3; text-align: left;">
+                                <span style="color: #15803d; font-weight: 700;">FSSAI Certified Food Processing Unit</span><br>
+                                Lic. No: <strong style="color: #0f172a;">11423850001080</strong> &bull; Siyaganj, Indore
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Order Summary -->
