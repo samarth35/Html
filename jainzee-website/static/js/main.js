@@ -547,25 +547,9 @@ async function openMyOrdersModal() {
     // TASK 4: Auth-gated My Orders. Unauthenticated users are redirected to the
     // login view with a toast. Authenticated users get the modal (on index) or
     // are navigated to the My Orders view (on sub-pages without the modal).
-    let loggedIn = false;
-    try {
-        const authRes = await authFetch('/api/auth/status');
-        const authData = await authRes.json();
-        loggedIn = !!authData.customer_logged_in;
-    } catch (e) {
-        console.error('Auth check failed:', e);
-    }
-    if (!loggedIn) {
-        showToast('Please login to view your orders.', 'error');
-        const msg = encodeURIComponent('Please login to view your orders.');
-        window.location.href = '/customer?msg=' + msg;
-        return;
-    }
-    if (!modal) {
-        // No modal on this page (e.g. cart/checkout) - go to the My Orders view.
-        window.location.href = '/customer';
-        return;
-    }
+    // Direct navigation to Track Order page (No login needed)
+    window.location.href = '/track';
+    return;
 
     // Show modal with loading state
     modal.classList.add('active');
@@ -1286,9 +1270,18 @@ async function toggleWishlist(productId, event) {
         });
         const data = await res.json();
         if (res.status === 401) {
-            wishlistProductIds = prevIds;
+            let localWishlist = JSON.parse(localStorage.getItem('jainzee_wishlist') || '[]');
+            const idx = localWishlist.indexOf(productId);
+            if (idx > -1) {
+                localWishlist.splice(idx, 1);
+                showToast(currentLang === 'hi' ? 'विशलिस्ट से हटाया गया' : 'Removed from wishlist');
+            } else {
+                localWishlist.push(productId);
+                showToast(currentLang === 'hi' ? 'विशलिस्ट में जोड़ा गया!' : 'Added to wishlist!');
+            }
+            localStorage.setItem('jainzee_wishlist', JSON.stringify(localWishlist));
+            wishlistProductIds = localWishlist;
             syncWishlistHearts();
-            showToast('Please login to use the wishlist', 'error');
             return;
         }
         if (data.in_wishlist !== undefined) {

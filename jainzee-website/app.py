@@ -880,6 +880,8 @@ def csrf_protect():
             '/api/cart/',
             '/api/contact',
             '/api/track',
+            '/api/products/',
+            '/api/reorder',
             '/admin/login',
         )
         if any(request.path.startswith(p) for p in exempt_paths):
@@ -1217,6 +1219,10 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # ---------------- CUSTOMER ROUTES ----------------
+
+@app.route('/track')
+def track_page():
+    return render_template('customer.html')
 
 @app.route('/customer')
 def customer_page():
@@ -3750,14 +3756,7 @@ def api_product_reviews(product_id):
             'total_reviews': len(reviews)
         })
     
-    else:  # POST - submit a review
-        # Check if customer is logged in
-        customer_id = session.get('customer_id')
-        if not customer_id:
-            customer_id, _ = get_jwt_customer()
-        if not customer_id:
-            return jsonify({'error': 'Please login to submit a review'}), 401
-        
+    else:  # POST - submit a review (Guest or customer)
         data = request.get_json() or {}
         rating = data.get('rating')
         review_text = data.get('review_text', '').strip()
@@ -3766,28 +3765,25 @@ def api_product_reviews(product_id):
         if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
             return jsonify({'error': 'Rating must be between 1 and 5'}), 400
         
-        # Get customer details
-        customer = conn.execute(
-            'SELECT name, phone FROM customers WHERE id=?',
-            (customer_id,)
-        ).fetchone()
+        customer_name = (data.get('customer_name') or data.get('name') or '').strip()
+        customer_phone = (data.get('customer_phone') or data.get('phone') or '').strip()
         
-        if not customer:
-            conn.close()
-            return jsonify({'error': 'Customer not found'}), 404
+        customer_id = session.get('customer_id')
+        if not customer_id:
+            customer_id, _ = get_jwt_customer()
+        if customer_id:
+            c_row = conn.execute('SELECT name, phone FROM customers WHERE id=?', (customer_id,)).fetchone()
+            if c_row:
+                customer_name = customer_name or c_row['name']
+                customer_phone = customer_phone or c_row['phone']
         
-        # Enforce ONE review per customer per product
-        existing = conn.execute(
-            'SELECT id FROM product_reviews WHERE product_id=? AND customer_phone=?',
-            (product_id, customer['phone'])).fetchone()
-        if existing:
-            conn.close()
-            return jsonify({'error': 'You have already reviewed this product. You can edit or delete your review.'}), 400
+        if not customer_name:
+            customer_name = 'Verified Buyer'
         
         # Insert review
         conn.execute(
             'INSERT INTO product_reviews (product_id, customer_name, customer_phone, rating, review_text) VALUES (?, ?, ?, ?, ?)',
-            (product_id, customer['name'], customer['phone'], rating, review_text)
+            (product_id, customer_name, customer_phone, rating, review_text)
         )
         conn.commit()
         conn.close()

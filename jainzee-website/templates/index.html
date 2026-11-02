@@ -40,17 +40,11 @@
                 <a href="#" class="whatsapp-share-btn" onclick="shareOnWhatsApp(event)">
                     <i class="fab fa-whatsapp"></i> <span data-i18n="share_whatsapp">Share</span>
                 </a>
-                <a href="/customer" class="customer-panel-btn" id="customerLoginBtn">
-                    <i class="fas fa-user"></i> <span data-i18n="customer_login">Customer Login</span>
+                <a href="/track" class="customer-panel-btn" id="trackOrderBtn">
+                    <i class="fas fa-truck"></i> <span>Track Order</span>
                 </a>
-                <span id="customerNameDisplay" class="customer-name-display" style="display: none;">
-                    <i class="fas fa-user-check"></i> <span id="customerNameText"></span>
-                </span>
                 <a href="/admin" class="admin-panel-btn" id="adminPanelBtn" style="display:none;">
                     <i class="fas fa-edit"></i> <span data-i18n="edit_website">Edit Website</span>
-                </a>
-                <a href="#" class="customer-panel-btn" id="myOrdersBtn" style="display: none;">
-                    <i class="fas fa-box"></i> <span>My Orders</span>
                 </a>
                 <a href="/cart" class="admin-panel-btn" id="cartLink">
                     <i class="fas fa-shopping-cart"></i> <span data-i18n="cart_title">Cart</span>
@@ -111,7 +105,7 @@
                 <a href="#about"><i class="fas fa-info-circle"></i> <span data-i18n="nav_about">About Us</span></a>
                 <a href="#factoryMedia"><i class="fas fa-industry"></i> <span data-i18n="nav_factory">Factory Tour</span></a>
                 <a href="#contact"><i class="fas fa-envelope"></i> <span data-i18n="nav_contact">Contact Us</span></a>
-                <a href="/customer" class="mobile-menu-login"><i class="fas fa-user"></i> <span>Login / Track Orders (Optional)</span></a>
+                <a href="/track" class="mobile-menu-login"><i class="fas fa-truck"></i> <span>Track Order</span></a>
             </nav>
             
             <!-- Hidden navbar items moved to hamburger menu -->
@@ -123,7 +117,6 @@
                 
                 <a href="#" class="mobile-whatsapp-link" onclick="shareOnWhatsApp(event)"><i class="fab fa-whatsapp"></i> <span data-i18n="share_whatsapp">Share</span></a>
                 <a href="/admin" class="mobile-admin-link" id="mobileAdminLink" style="display:none;"><i class="fas fa-edit"></i> <span data-i18n="edit_website">Edit Website</span></a>
-                <a href="#" class="mobile-customer-link" id="mobileMyOrdersLink" style="display: none;"><i class="fas fa-box"></i> <span>My Orders</span></a>
             </div>
         </div>
         <!-- Overlay for closing sidebar when clicking outside -->

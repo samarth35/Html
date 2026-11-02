@@ -3,304 +3,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customer Panel - Jainzee</title>
+    <title>Track Your Order - Jainzee™ Food Processing Industries</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-        <script src="/static/js/premium.js?v=1.0"></script>
-    <!-- Firebase SDK (Compat) -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-    <script src="{{ url_for('static', filename='js/firebase.js') }}?v=1.1"></script>
     <style>
-        .customer-header { background: linear-gradient(135deg, #2c1810, #5a3d2b); }
-        /* ===== ORDER TRACKING PROGRESS BAR ===== */
-        .order-progress { display: flex; align-items: center; justify-content: space-between; margin: 14px 0 6px; gap: 0; }
+        :root {
+            --primary: #b8860b;
+            --primary-dark: #8b6508;
+            --dark: #2c1810;
+            --bg-light: #fbf9f6;
+            --border: #e8e0d5;
+            --success: #15803d;
+        }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-light);
+            color: #2c1810;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .track-header {
+            background: linear-gradient(135deg, #2c1810 0%, #4a2f1d 100%);
+            color: white;
+            padding: 18px 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .header-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .brand-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #ffd700;
+            text-decoration: none;
+        }
+        .brand-title i { font-size: 1.4rem; }
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .nav-btn {
+            color: #e0d5c8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { color: #ffd700; }
+        
+        .track-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .track-card {
+            background: white;
+            border-radius: 20px;
+            padding: 36px 32px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.06);
+            border: 1px solid var(--border);
+        }
+        .track-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus { border-color: var(--primary); }
+        .btn-track {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+        .btn-track:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        
+        /* Order Card Styling */
+        .order-result-card {
+            background: #ffffff;
+            border: 1.5px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f0ece5;
+            padding-bottom: 14px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .order-status-pill {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-placed, .status-pending { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .status-confirmed { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .status-shipped { background: #e0f2fe; color: #075985; border: 1px solid #bae6fd; }
+        .status-delivered { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .status-cancelled { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+        /* 4-Step Progress Bar */
+        .order-progress { display: flex; align-items: center; justify-content: space-between; margin: 24px 0 16px; gap: 0; }
         .order-progress-step { display: flex; flex-direction: column; align-items: center; flex: 1; position: relative; }
         .order-progress-step:not(:last-child)::after {
-            content: ''; position: absolute; top: 14px; left: 50%; width: 100%;
-            height: 3px; background: #e0d5c8; z-index: 0;
+            content: ''; position: absolute; top: 16px; left: 50%; width: 100%;
+            height: 4px; background: #e8e0d5; z-index: 0;
         }
-        .order-progress-step.done:not(:last-child)::after { background: #b8860b; }
+        .order-progress-step.done:not(:last-child)::after { background: #16a34a; }
         .order-progress-dot {
-            width: 28px; height: 28px; border-radius: 50%; background: #e0d5c8;
-            border: 3px solid #e0d5c8; z-index: 1; display: flex; align-items: center;
-            justify-content: center; font-size: 0.7rem; color: #999; font-weight: 700;
+            width: 32px; height: 32px; border-radius: 50%; background: #e8e0d5;
+            border: 3px solid #e8e0d5; z-index: 1; display: flex; align-items: center;
+            justify-content: center; font-size: 0.75rem; color: #888; font-weight: 700;
             transition: all 0.3s;
         }
         .order-progress-step.done .order-progress-dot {
-            background: #b8860b; border-color: #b8860b; color: white;
+            background: #16a34a; border-color: #16a34a; color: white;
         }
         .order-progress-step.active .order-progress-dot {
-            background: white; border-color: #b8860b; color: #b8860b;
-            box-shadow: 0 0 0 4px rgba(184,134,11,0.2);
+            background: white; border-color: #16a34a; color: #16a34a;
+            box-shadow: 0 0 0 5px rgba(22,163,74,0.2);
         }
-        .order-progress-label { font-size: 0.62rem; color: #8a7362; margin-top: 5px; text-align: center; font-weight: 600; }
+        .order-progress-label { font-size: 0.75rem; color: #8a7362; margin-top: 8px; text-align: center; font-weight: 600; }
         .order-progress-step.done .order-progress-label,
-        .order-progress-step.active .order-progress-label { color: #b8860b; }
+        .order-progress-step.active .order-progress-label { color: #16a34a; font-weight: 700; }
 
-        .customer-header .brand i { color: #ffd700; }
-        .customer-content { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
-        .auth-section { max-width: 450px; margin: 40px auto; }
-        .auth-card { background: white; border-radius: 16px; padding: 35px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        .auth-card h2 { color: #2c1810; margin-bottom: 20px; text-align: center; }
-        .auth-tabs { display: flex; margin-bottom: 25px; background: #f5f0e8; border-radius: 10px; padding: 4px; gap: 4px; overflow-x: auto; }
-        .auth-tab { flex: 1; min-width: 70px; padding: 10px 4px; text-align: center; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; color: #8a7362; font-size: 0.8rem; white-space: nowrap; transition: all 0.2s; }
-        .auth-tab { flex: 1; padding: 10px; text-align: center; border: none; background: transparent; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; color: #8a7362; }
-        .auth-tab.active { background: #b8860b; color: white; }
-        .auth-form { display: none; }
-        .auth-form.active { display: block; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 6px; color: #2c1810; }
-        .form-group input, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #e8e0d5; border-radius: 10px; font-size: 0.95rem; font-family: inherit; }
-        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #b8860b; }
-        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 25px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.3s; font-family: inherit; text-decoration: none; }
-        .btn-primary { background: #b8860b; color: white; }
-        .btn-primary:hover { background: #8b6508; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-success:hover { background: #218838; }
-        .btn-outline { background: transparent; border: 2px solid #ddd; color: #4a3728; }
-        .btn-outline:hover { border-color: #b8860b; }
-        .btn-block { width: 100%; justify-content: center; }
-        .customer-dashboard { display: none; }
-        .customer-dashboard.active { display: block; }
-        .welcome-bar { background: white; border-radius: 16px; padding: 25px 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
-        .welcome-bar h2 { color: #2c1810; }
-        .welcome-bar p { color: #8a7362; }
-        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; }
-        .order-card { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #e8e0d5; }
-        .order-card h3 { color: #2c1810; margin-bottom: 10px; font-weight: 700; }
-        .order-items { margin: 15px 0; }
-        .order-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0ece5; font-size: 0.9rem; color: #2c1810; }
-        .order-item span:first-child { color: #2c1810; font-weight: 500; }
-        .order-item span:last-child { color: #1a1a1a; font-weight: 600; }
-        .order-total { font-size: 1.2rem; font-weight: 700; color: #b8860b !important; margin-top: 10px; }
-        .order-status { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-confirmed { background: #d4edda; color: #155724; }
-        .status-shipped { background: #cce5ff; color: #004085; }
-        .status-delivered { background: #d4edda; color: #155724; }
-        .status-cancelled { background: #f8d7da; color: #721c24; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #8a7362; }
-        .empty-state i { font-size: 3rem; margin-bottom: 15px; color: #b8860b; }
-        .toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
-        .toast { padding: 15px 25px; border-radius: 10px; color: white; font-size: 0.9rem; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-        .toast.success { background: #28a745; }
-        .toast.error { background: #dc3545; }
-        .back-link { display: inline-flex; align-items: center; gap: 6px; color: #8a7362; text-decoration: none; font-size: 0.85rem; margin-top: 15px; }
-        .back-link:hover { color: #b8860b; }
-    
-        /* Mobile safeguards for customer panel */
+        /* Item Rows */
+        .item-list { margin: 18px 0; border-top: 1px solid #f0ece5; }
+        .item-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f8f6f2; font-size: 0.92rem; }
+        .item-name { font-weight: 600; color: #2c1810; }
+        .item-variant { font-size: 0.8rem; color: #8a7362; font-weight: normal; margin-left: 6px; }
+        .item-price { font-weight: 700; color: #1a1a1a; }
+        
+        .order-footer-details {
+            background: #faf7f2;
+            padding: 14px 18px;
+            border-radius: 12px;
+            margin-top: 16px;
+            font-size: 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #5a3d2b;
+        }
+        .order-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+        .btn-action {
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-invoice { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .btn-invoice:hover { background: #e5e7eb; }
+        .btn-reorder { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .btn-reorder:hover { background: #fde68a; }
+        .btn-whatsapp { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .btn-whatsapp:hover { background: #bbf7d0; }
+
+        .toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 2000; }
+        .toast { padding: 14px 22px; border-radius: 10px; color: white; font-size: 0.9rem; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeIn 0.3s; }
+        .toast.success { background: #16a34a; }
+        .toast.error { background: #dc2626; }
+
         @media (max-width: 600px) {
-            .customer-content { padding: 0 12px !important; }
-            .auth-card { padding: 22px 16px !important; }
-            .welcome-bar { padding: 16px 14px !important; }
-            .orders-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
-            .order-card { padding: 16px 14px !important; }
+            .track-card { padding: 24px 18px; }
+            .search-box { flex-direction: column; }
+            .btn-track { width: 100%; justify-content: center; }
+            .order-progress-label { font-size: 0.65rem; }
+            .order-progress-dot { width: 26px; height: 26px; font-size: 0.65rem; }
+            .order-progress-step:not(:last-child)::after { top: 13px; }
         }
     </style>
-<script src="/static/js/csrf.js"></script>
 </head>
 <body>
-    <header class="admin-header customer-header">
-        <div class="brand">
-            <i class="fas fa-user-circle"></i>
-            <span>Jainzee Customer Panel</span>
+    <header class="track-header">
+        <div class="header-inner">
+            <a href="/" class="brand-title">
+                <i class="fas fa-seedling"></i>
+                <span>Jainzee<sup>&trade;</sup> Dry Fruits</span>
+            </a>
+            <nav class="header-nav">
+                <a href="/" class="nav-btn"><i class="fas fa-home"></i> Home</a>
+                <a href="/#products" class="nav-btn"><i class="fas fa-box-open"></i> Products</a>
+                <a href="/cart" class="nav-btn"><i class="fas fa-shopping-cart"></i> Cart</a>
+            </nav>
         </div>
-        <nav class="admin-nav">
-            <a href="/"><i class="fas fa-home"></i> Home</a>
-            <a href="/#products"><i class="fas fa-box-open"></i> Products</a>
-            <a href="/admin"><i class="fas fa-lock"></i> Admin</a>
-        </nav>
     </header>
 
-    <main class="customer-content">
-        <!-- ===== LOGIN / REGISTER ===== -->
-        <div class="auth-section" id="authSection">
-            <div class="auth-card">
-                <h2><i class="fas fa-user-circle"></i> Customer Login</h2>
-                <div class="auth-tabs">
-                    <button class="auth-tab active" id="tabBtnLogin" onclick="switchAuthTab('login')"><i class="fas fa-key"></i> Password</button>
-                    <button class="auth-tab" id="tabBtnOtp" onclick="switchAuthTab('otp')"><i class="fas fa-mobile-alt"></i> Phone OTP</button>
-                    <button class="auth-tab" id="tabBtnTrack" onclick="switchAuthTab('track')"><i class="fas fa-truck"></i> Track Order</button>
-                    <button class="auth-tab" id="tabBtnRegister" onclick="switchAuthTab('register')"><i class="fas fa-user-plus"></i> Register</button>
-                    <button class="auth-tab" id="tabBtnMagic" onclick="switchAuthTab('magic')"><i class="fas fa-magic"></i> Email Link</button>
-                </div>
-
-                <!-- Login Form -->
-                <div class="auth-form active" id="loginForm">
-                    <div class="form-group">
-                        <label>Email or Phone Number</label>
-                        <input type="text" id="loginPhone" placeholder="Enter email or phone number" onkeydown="if(event.key==='Enter') customerLogin()">
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="loginPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter') customerLogin()">
-                    </div>
-                    <button class="btn btn-primary btn-block" onclick="customerLogin()">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </button>
-                    
-                    <!-- Divider -->
-                    <div style="text-align: center; margin: 20px 0; position: relative;">
-                        <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e8e0d5;"></div>
-                        <span style="background: white; padding: 0 15px; position: relative; color: #8a7362; font-size: 0.85rem;">OR</span>
-                    </div>
-                    
-                    <!-- Google Sign In Button -->
-                    <button class="btn btn-google btn-block" onclick="googleSignIn()" style="background: white; color: #757575; border: 2px solid #e8e0d5; box-shadow: none;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 8px;">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.03 2.53-2.16 3.31v2.77h3.49c2.04-1.88 3.24-4.64 3.24-7.89z"/>
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.49-2.77c-.98.66-2.23 1.06-3.79 1.06-2.91 0-5.37-1.96-6.25-4.63H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                            <path fill="#FBBC05" d="M5.75 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.72-.62z"/>
-                            <path fill="#EA4335" d="M12 5.38c1.64 0 3.11.56 4.27 1.67l3.2-3.2C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.57 2.84c.88-2.67 3.34-4.53 6.25-4.53z"/>
-                        </svg>
-                        Sign in with Google
-                    </button>
-                </div>
-
-                <!-- Phone OTP Login Form (Firebase) -->
-                <div class="auth-form" id="otpForm">
-                    <div id="otpStep1">
-                        <div id="firebaseRegionAlert" style="display: none; background: #fef2f2; border: 1.5px solid #f87171; border-radius: 8px; padding: 12px; margin-bottom: 14px; color: #991b1b; font-size: 0.82rem; line-height: 1.4;">
-                            <div style="font-weight: 700; margin-bottom: 4px;"><i class="fas fa-exclamation-triangle"></i> Firebase SMS Region Not Allowed:</div>
-                            Firebase Console me <strong>India (+91)</strong> allow karna zaroori hai.<br>
-                            <a href="https://console.firebase.google.com/project/jainzee-dd1d7/authentication/settings" target="_blank" style="color: #b91c1c; font-weight: 700; text-decoration: underline;">
-                                👉 Click here to enable India (+91) in Firebase Console <i class="fas fa-external-link-alt"></i>
-                            </a>
-                        </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-mobile-alt"></i> Mobile Number</label>
-                            <div style="display: flex; gap: 8px;">
-                                <span style="display: flex; align-items: center; padding: 0 12px; background: #f5f0e8; border: 2px solid #e8e0d5; border-radius: 10px; font-weight: 700; color: #5a3d2b; font-size: 0.95rem;">+91</span>
-                                <input type="tel" id="otpPhoneInput" maxlength="10" placeholder="10-digit mobile number" style="flex: 1;" onkeydown="if(event.key==='Enter') requestFirebaseOtp()">
-                            </div>
-                            <small style="color: #8a7362; font-size: 0.78rem; display: block; margin-top: 5px;">
-                                <i class="fas fa-shield-alt" style="color: #16a34a;"></i> Real SMS OTP will be sent directly to your phone.
-                            </small>
-                        </div>
-                        <div id="recaptcha-container"></div>
-                        <button class="btn btn-primary btn-block" id="btnSendPhoneOtp" onclick="requestFirebaseOtp()">
-                            <i class="fas fa-paper-plane"></i> Send OTP via SMS
-                        </button>
-                    </div>
-
-                    <div id="otpStep2" style="display: none;">
-                        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #166534;">
-                            <i class="fas fa-check-circle"></i> <span id="otpSentNotice">OTP sent via SMS!</span>
-                            <div style="font-size: 0.78rem; color: #15803d; margin-top: 3px;">
-                                <a href="javascript:void(0)" onclick="resetPhoneOtpStep()" style="color: #15803d; text-decoration: underline;">Change mobile number</a>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Enter 6-Digit OTP</label>
-                            <input type="text" id="otpInputCode" maxlength="6" placeholder="• • • • • •" style="letter-spacing: 6px; font-size: 1.3rem; font-weight: bold; text-align: center;" onkeydown="if(event.key==='Enter') verifyFirebaseOtp()">
-                        </div>
-                        <button class="btn btn-success btn-block" id="btnVerifyPhoneOtp" onclick="verifyFirebaseOtp()">
-                            <i class="fas fa-check-circle"></i> Verify &amp; Login
-                        </button>
-                        <div style="text-align: center; margin-top: 15px;">
-                            <button id="resendOtpBtn" class="btn btn-outline" style="font-size: 0.85rem; padding: 6px 12px;" onclick="requestFirebaseOtp()" disabled>
-                                Resend OTP in <span id="otpTimer">60</span>s
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Email Passwordless Magic Link Form (Firebase) -->
-                <div class="auth-form" id="magicForm">
-                    <div id="magicStep1">
-                        <div class="form-group">
-                            <label><i class="fas fa-envelope"></i> Email Address</label>
-                            <input type="email" id="magicEmailInput" placeholder="Enter your email address" onkeydown="if(event.key==='Enter') requestFirebaseMagicLink()">
-                            <small style="color: #8a7362; font-size: 0.78rem; display: block; margin-top: 5px;">
-                                <i class="fas fa-magic" style="color: #b8860b;"></i> Passwordless login: We will email you a secure 1-click sign-in link.
-                            </small>
-                        </div>
-                        <button class="btn btn-primary btn-block" id="btnSendMagicLink" onclick="requestFirebaseMagicLink()">
-                            <i class="fas fa-paper-plane"></i> Send Magic Sign-In Link
-                        </button>
-                    </div>
-
-                    <div id="magicStep2" style="display: none;">
-                        <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 18px; text-align: center;">
-                            <div style="font-size: 2.2rem; color: #2563eb; margin-bottom: 8px;"><i class="fas fa-envelope-open-text"></i></div>
-                            <h4 style="color: #1e3a8a; margin-bottom: 6px;">Check Your Inbox!</h4>
-                            <p style="font-size: 0.85rem; color: #1e40af; margin-bottom: 14px; line-height: 1.4;">
-                                We sent a secure 1-click sign-in link to <br><strong id="magicEmailSentTo"></strong>. Open the email and click the link to log in.
-                            </p>
-                            <button class="btn btn-outline" style="font-size: 0.82rem; padding: 6px 14px;" onclick="resetMagicStep()">
-                                <i class="fas fa-arrow-left"></i> Change email address
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Track Order Form (No Login Required) -->
-                <div class="auth-form" id="trackForm">
-                    <div style="background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 12px; margin-bottom: 16px; color: #166534; font-size: 0.85rem;">
-                        <i class="fas fa-bolt" style="color: #16a34a;"></i> <strong>Instant Order Tracking:</strong> Login ki zaroorat nahi hai. Apna 10-digit mobile number ya Order ID daal kar live status dekhein!
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-search"></i> Mobile Number or Order ID</label>
-                        <input type="text" id="trackInput" placeholder="Enter 10-digit mobile or Order ID" onkeydown="if(event.key==='Enter') trackDirectOrder()">
-                    </div>
-                    <button class="btn btn-primary btn-block" id="btnTrackDirect" onclick="trackDirectOrder()">
-                        <i class="fas fa-location-arrow"></i> Track My Order
-                    </button>
-                    <div id="trackResultsContainer" style="margin-top: 20px;"></div>
-                </div>
-
-                <div class="auth-form" id="registerForm">
-                    <div class="form-group">
-                        <label>Full Name</label>
-                        <input type="text" id="regName" placeholder="Your name">
-                    </div>
-                    <div class="form-group">
-                        <label>Email or Phone Number</label>
-                        <input type="text" id="regPhone" placeholder="you@email.com or 9752937733">
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="regPassword" placeholder="Create password (min 4 chars)">
-                    </div>
-                    <p style="font-size: 0.8rem; color: #8a7362; margin-bottom: 15px;">
-                        <i class="fas fa-info-circle"></i> Address is collected at checkout.
-                    </p>
-                    <button class="btn btn-success btn-block" onclick="customerRegister()">
-                        <i class="fas fa-user-plus"></i> Register
-                    </button>
-                </div>
-            </div>
+    <main class="track-container">
+        <div class="track-card">
             <div style="text-align: center;">
-                <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Website</a>
+                <span class="track-badge">
+                    <i class="fas fa-shield-alt"></i> 100% Direct Guest Order Tracking • No Login Required
+                </span>
+                <h1 style="color: #2c1810; margin: 8px 0 6px; font-size: 1.8rem; font-weight: 700;">
+                    Track Your Order
+                </h1>
+                <p style="color: #8a7362; font-size: 0.92rem; margin: 0 auto; max-width: 520px;">
+                    Apna 10-digit Mobile Number ya Order ID enter karein aur live delivery status dekhein.
+                </p>
             </div>
-        </div>
 
-        <!-- ===== CUSTOMER DASHBOARD ===== -->
-        <div class="customer-dashboard" id="customerDashboard">
-            <div class="welcome-bar">
-                <div>
-                    <h2>Welcome, <span id="customerName"></span>! 👋</h2>
-                    <p>View your order history and track your orders</p>
-                </div>
-                <button class="btn btn-outline" onclick="customerLogout()">
-                    <i class="fas fa-sign-out-alt"></i> Logout
+            <div class="search-box">
+                <input type="tel" id="trackInput" class="search-input" placeholder="Enter 10-digit mobile number or Order ID" onkeydown="if(event.key==='Enter') trackDirectOrder()">
+                <button class="btn-track" id="btnTrack" onclick="trackDirectOrder()">
+                    <i class="fas fa-search"></i> Track Order
                 </button>
             </div>
 
-            <h2 style="color: #2c1810; margin-bottom: 20px;"><i class="fas fa-shopping-bag"></i> My Orders</h2>
-            <div class="orders-grid" id="ordersGrid">
-                <div class="empty-state">
-                    <i class="fas fa-shopping-bag"></i>
-                    <h3>No orders yet</h3>
-                    <p>Browse our products and place your first order!</p>
-                    <a href="/#products" class="btn btn-primary" style="margin-top: 15px;">
-                        <i class="fas fa-box-open"></i> Browse Products
-                    </a>
-                </div>
+            <div id="resultsContainer"></div>
+
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #f0ece5;">
+                <span style="color: #8a7362; font-size: 0.88rem;">Need fresh premium dry fruits?</span>
+                <a href="/#products" style="color: #b8860b; font-weight: 600; margin-left: 6px; text-decoration: none;">
+                    Explore Products &rarr;
+                </a>
             </div>
         </div>
     </main>
@@ -308,678 +302,214 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script>
-        // ==================== TOAST ====================
         function showToast(message, type = 'success') {
-            // Premium animated toast from premium.js when available
-            if (window.JZ && JZ.toast) { JZ.toast(message, type); return; }
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.textContent = message;
             container.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            setTimeout(() => toast.remove(), 3500);
         }
 
-        // Authenticated fetch helper - adds Bearer token if available
-        async function authFetch(url, options = {}) {
-            const token = localStorage.getItem('jainzee_token');
-            const headers = { ...(options.headers || {}) };
-            if (token) {
-                headers['Authorization'] = 'Bearer ' + token;
-            }
-            return fetch(url, { ...options, headers });
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // ==================== AUTH TABS ====================
-        function switchAuthTab(tab) {
-            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-            if (tab === 'login') {
-                document.getElementById('tabBtnLogin')?.classList.add('active');
-                document.getElementById('loginForm')?.classList.add('active');
-            } else if (tab === 'otp') {
-                document.getElementById('tabBtnOtp')?.classList.add('active');
-                document.getElementById('otpForm')?.classList.add('active');
-            } else if (tab === 'track') {
-                document.getElementById('tabBtnTrack')?.classList.add('active');
-                document.getElementById('trackForm')?.classList.add('active');
-                const tInp = document.getElementById('trackInput');
-                if (tInp) setTimeout(() => tInp.focus(), 100);
-            } else if (tab === 'magic') {
-                document.getElementById('tabBtnMagic')?.classList.add('active');
-                document.getElementById('magicForm')?.classList.add('active');
-            } else {
-                document.getElementById('tabBtnRegister')?.classList.add('active');
-                document.getElementById('registerForm')?.classList.add('active');
+        function buildProgressBar(status) {
+            const s = String(status || '').toLowerCase();
+            const steps = [
+                { key: 'placed', label: 'Placed' },
+                { key: 'confirmed', label: 'Confirmed' },
+                { key: 'shipped', label: 'Shipped' },
+                { key: 'delivered', label: 'Delivered' }
+            ];
+            let activeIdx = 0;
+            if (s.includes('confirm')) activeIdx = 1;
+            else if (s.includes('ship') || s.includes('transit')) activeIdx = 2;
+            else if (s.includes('deliver')) activeIdx = 3;
+            else if (s.includes('cancel')) activeIdx = -1;
+
+            if (activeIdx === -1) {
+                return `
+                    <div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; text-align: center; margin: 16px 0;">
+                        <i class="fas fa-times-circle"></i> This order was cancelled.
+                    </div>
+                `;
             }
+
+            return `
+                <div class="order-progress">
+                    ${steps.map((st, i) => {
+                        const isDone = i <= activeIdx;
+                        const isActive = i === activeIdx;
+                        const cls = isDone ? (isActive ? 'active done' : 'done') : '';
+                        return `
+                            <div class="order-progress-step ${cls}">
+                                <div class="order-progress-dot">${isDone ? '✓' : (i + 1)}</div>
+                                <span class="order-progress-label">${st.label}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
         }
 
-        // ==================== FIREBASE PHONE OTP LOGIC ====================
-        let otpCountdown = 60;
-        let otpTimerInterval = null;
-
-        function resetPhoneOtpStep() {
-            clearInterval(otpTimerInterval);
-            document.getElementById('otpStep1').style.display = 'block';
-            document.getElementById('otpStep2').style.display = 'none';
-            const btn = document.getElementById('btnSendPhoneOtp');
-            if (btn) btn.disabled = false;
-        }
-
-        function startPhoneOtpTimer() {
-            clearInterval(otpTimerInterval);
-            otpCountdown = 60;
-            const resendBtn = document.getElementById('resendOtpBtn');
-            if (resendBtn) {
-                resendBtn.disabled = true;
-                resendBtn.innerHTML = 'Resend OTP in <span id="otpTimer">60</span>s';
-            }
-            otpTimerInterval = setInterval(() => {
-                otpCountdown--;
-                const curTimer = document.getElementById('otpTimer');
-                if (curTimer) curTimer.textContent = otpCountdown;
-                if (otpCountdown <= 0) {
-                    clearInterval(otpTimerInterval);
-                    if (resendBtn) {
-                        resendBtn.disabled = false;
-                        resendBtn.innerHTML = '<i class="fas fa-redo"></i> Resend OTP';
-                    }
-                }
-            }, 1000);
-        }
-
-        let activeOtpChannel = 'firebase';
-        let currentOtpPhone = '';
-
-        async function requestFirebaseOtp() {
-            const phoneInput = document.getElementById('otpPhoneInput');
-            const rawPhone = phoneInput ? phoneInput.value.trim() : '';
-            if (!rawPhone) {
-                showToast('Please enter your 10-digit mobile number!', 'error');
-                return;
-            }
-            const cleanPhone = rawPhone.replace(/\D/g, '');
-            if (cleanPhone.length < 10) {
-                showToast('Please enter a valid 10-digit mobile number!', 'error');
-                return;
-            }
-            const standardPhone = cleanPhone.slice(-10);
-            currentOtpPhone = standardPhone;
-
-            const btn = document.getElementById('btnSendPhoneOtp');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending SMS OTP...';
-            }
-
-            try {
-                let sentViaFirebase = false;
-                const fullPhone = '+91' + standardPhone;
-
-                // Try Firebase first if loaded
-                if (typeof sendFirebasePhoneOtp === 'function' && typeof firebase !== 'undefined' && firebase.auth) {
-                    try {
-                        await sendFirebasePhoneOtp(fullPhone, 'recaptcha-container');
-                        sentViaFirebase = true;
-                        activeOtpChannel = 'firebase';
-                    } catch (fbErr) {
-                        console.warn('Firebase SMS OTP notice, using server SMS OTP fallback:', fbErr);
-                    }
-                }
-
-                if (!sentViaFirebase) {
-                    // Seamless server fallback
-                    const res = await fetch('/api/customer/send-otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ identifier: standardPhone })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
-                    activeOtpChannel = 'server';
-                    if (data.otp_code) {
-                        showToast('Verification Code: ' + data.otp_code, 'success');
-                    }
-                }
-
-                document.getElementById('otpStep1').style.display = 'none';
-                document.getElementById('otpStep2').style.display = 'block';
-                
-                const noticeEl = document.getElementById('otpSentNotice');
-                if (noticeEl) {
-                    noticeEl.textContent = 'SMS OTP sent to +91 ' + standardPhone + '!';
-                }
-                const inputEl = document.getElementById('otpInputCode');
-                if (inputEl) {
-                    inputEl.value = '';
-                    inputEl.focus();
-                }
-                startPhoneOtpTimer();
-                showToast('OTP sent to +91 ' + standardPhone + '!');
-            } catch (err) {
-                console.error('Phone OTP Error:', err);
-                showToast(err.message || 'Failed to send SMS OTP. Please check your number.', 'error');
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP via SMS';
-                }
-            }
-        }
-
-        async function verifyFirebaseOtp() {
-            const otpInput = document.getElementById('otpInputCode');
-            const code = otpInput ? otpInput.value.trim() : '';
-            if (!code || code.length < 4) {
-                showToast('Please enter the OTP code!', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('btnVerifyPhoneOtp');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-            }
-
-            try {
-                let success = false;
-                let customerName = '';
-
-                if (activeOtpChannel === 'firebase' && typeof verifyFirebasePhoneOtp === 'function') {
-                    try {
-                        const result = await verifyFirebasePhoneOtp(code);
-                        if (result && result.success) {
-                            success = true;
-                            customerName = (result.customer && result.customer.name) || '';
-                            if (result.token) localStorage.setItem('jainzee_token', result.token);
-                        }
-                    } catch (fbErr) {
-                        console.warn('Firebase verify notice, trying server verify:', fbErr);
-                    }
-                }
-
-                if (!success) {
-                    const res = await fetch('/api/customer/verify-otp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ identifier: currentOtpPhone, otp: code })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Invalid or expired OTP');
-                    success = true;
-                    customerName = (data.customer && data.customer.name) || '';
-                    if (data.token) localStorage.setItem('jainzee_token', data.token);
-                }
-
-                clearInterval(otpTimerInterval);
-                showToast('Login successful! Welcome ' + customerName + '!');
-                const redir = new URLSearchParams(window.location.search).get('redirect');
-                if (redir === 'checkout') {
-                    window.location.href = '/checkout';
-                    return;
-                }
-                loadCustomerDashboard();
-            } catch (err) {
-                console.error('OTP Verify Error:', err);
-                showToast(err.message || 'Invalid or expired OTP code.', 'error');
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify &amp; Login';
-                }
-            }
-        }
-
-        // ==================== EMAIL MAGIC LINK LOGIC ====================
-        function resetMagicStep() {
-            document.getElementById('magicStep1').style.display = 'block';
-            document.getElementById('magicStep2').style.display = 'none';
-            const btn = document.getElementById('btnSendMagicLink');
-            if (btn) btn.disabled = false;
-        }
-
-        async function requestFirebaseMagicLink() {
-            const emailInput = document.getElementById('magicEmailInput');
-            const email = emailInput ? emailInput.value.trim() : '';
-            if (!email || !email.includes('@')) {
-                showToast('Please enter a valid email address!', 'error');
-                return;
-            }
-
-            const btn = document.getElementById('btnSendMagicLink');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending Magic Link...';
-            }
-
-            try {
-                if (typeof sendFirebaseEmailLink !== 'function') {
-                    throw new Error('Firebase Auth is still initializing. Please refresh.');
-                }
-                await sendFirebaseEmailLink(email);
-                document.getElementById('magicStep1').style.display = 'none';
-                document.getElementById('magicStep2').style.display = 'block';
-                document.getElementById('magicEmailSentTo').textContent = email;
-                showToast('Magic sign-in link sent! Please check your email.');
-            } catch (err) {
-                console.error('Firebase Email Link Error:', err);
-                showToast(err.message || 'Failed to send email link. Please try again.', 'error');
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Magic Sign-In Link';
-                }
-            }
-        }
-
-        // ==================== AUTH ====================
-        async function customerRegister() {
-            const identifier = document.getElementById('regPhone').value.trim();
-            // Determine if the identifier is an email or phone
-            const isEmail = identifier.includes('@');
-            const data = {
-                name: document.getElementById('regName').value.trim(),
-                phone: isEmail ? '' : identifier,
-                email: isEmail ? identifier : '',
-                password: document.getElementById('regPassword').value
-            };
-            if (!data.name || !identifier || !data.password) {
-                showToast('Name, email/phone and password are required!', 'error');
-                return;
-            }
-            try {
-                const res = await fetch('/api/customer/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || 'Registration failed');
-                
-                // Store JWT token if provided
-                if (result.token) {
-                    localStorage.setItem('jainzee_token', result.token);
-                }
-                
-                showToast('Registration successful! Welcome ' + result.name + '!');
-                const redir = new URLSearchParams(window.location.search).get('redirect');
-                if (redir === 'checkout') {
-                    window.location.href = '/checkout';
-                    return;
-                }
-                loadCustomerDashboard();
-            } catch (e) {
-                showToast(e.message, 'error');
-            }
-        }
-
-        async function customerLogin() {
-            const identifier = document.getElementById('loginPhone').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            if (!identifier || !password) {
-                showToast('Email/phone and password are required!', 'error');
-                return;
-            }
-            const isEmail = identifier.includes('@');
-            const data = {
-                identifier: identifier,
-                phone: isEmail ? '' : identifier,
-                email: isEmail ? identifier : '',
-                password: password
-            };
-            try {
-                const res = await fetch('/api/customer/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                const result = await res.json();
-                if (!res.ok) {
-                    if (result.is_guest) {
-                        showToast(result.error, 'error');
-                        switchAuthTab('register');
-                        const rP = document.getElementById('regPhone');
-                        if (rP) rP.value = identifier;
-                        return;
-                    }
-                    throw new Error(result.error || 'Login failed');
-                }
-                
-                // Store JWT token if provided
-                if (result.token) {
-                    localStorage.setItem('jainzee_token', result.token);
-                }
-                
-                showToast('Welcome back, ' + result.name + '!');
-                const redir = new URLSearchParams(window.location.search).get('redirect');
-                if (redir === 'checkout') {
-                    window.location.href = '/checkout';
-                    return;
-                }
-                loadCustomerDashboard();
-            } catch (e) {
-                showToast(e.message, 'error');
-            }
-        }
-
-        async function customerLogout() {
-            localStorage.removeItem('jainzee_token');
-            await fetch('/api/customer/logout', { method: 'POST' });
-            showToast('Logged out successfully');
-            location.reload();
-        }
-
-        // ==================== GOOGLE AUTH ====================
-        
-        async function googleSignIn() {
-            // Open Google OAuth popup with properly encoded parameters
-            const width = 500, height = 600;
-            const left = (window.screen.width - width) / 2;
-            const top = (window.screen.height - height) / 2;
-            
-            // Get client ID from server-side configuration
-            // The backend will handle the OAuth flow with proper client ID
-            const googleAuthUrl = '/api/auth/google';
-            
-            const popup = window.open(
-                googleAuthUrl,
-                'Google Sign In',
-                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-            );
-            
-            // Listen for messages from popup
-            window.addEventListener('message', async function handler(event) {
-                if (event.origin !== window.location.origin) return;
-                
-                if (event.data.type === 'google-auth-code') {
-                    window.removeEventListener('message', handler);
-                    
-                    // Send the authorization code to the server for exchange
-                    try {
-                        const res = await fetch('/api/auth/google/token', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ code: event.data.code })
-                        });
-                        
-                        const data = await res.json();
-                        
-                        if (res.ok && data.logged_in) {
-                            // Store JWT token if provided
-                            if (data.token) {
-                                localStorage.setItem('jainzee_token', data.token);
-                            }
-                            await loadCustomerDashboard();
-                            showToast('Welcome, ' + data.customer.name + '!');
-                        } else {
-                            showToast(data.error || 'Google sign in failed', 'error');
-                        }
-                    } catch (e) {
-                        showToast('Authentication error. Please try again.', 'error');
-                        console.error('Google auth error:', e);
-                    }
-                    
-                    if (popup) popup.close();
-                } else if (event.data.type === 'google-auth-error') {
-                    window.removeEventListener('message', handler);
-                    showToast(event.data.error || 'Google sign in failed', 'error');
-                    if (popup) popup.close();
-                }
-            });
-        }
-
-        // ==================== DIRECT ORDER TRACKING ====================
         async function trackDirectOrder() {
             const input = document.getElementById('trackInput');
-            const q = input ? input.value.trim() : '';
-            if (!q) {
-                showToast('Please enter your 10-digit mobile number or Order ID!', 'error');
+            const query = input ? input.value.trim() : '';
+            if (!query) {
+                showToast('Please enter your 10-digit mobile number or Order ID', 'error');
                 return;
             }
-            const container = document.getElementById('trackResultsContainer');
-            const btn = document.getElementById('btnTrackDirect');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Finding your order...';
-            }
+            const container = document.getElementById('resultsContainer');
+            const btn = document.getElementById('btnTrack');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Tracking...';
+
             try {
                 const res = await fetch('/api/track-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: q })
+                    body: JSON.stringify({ query: query })
                 });
                 const data = await res.json();
-                if (!res.ok || !data.found || !data.orders.length) {
+                if (!res.ok || !data.found || !data.orders || !data.orders.length) {
                     container.innerHTML = `
-                        <div style="background: #fff8eb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; text-align: center; color: #92400e;">
-                            <i class="fas fa-search" style="font-size: 2rem; margin-bottom: 10px; color: #b8860b;"></i>
-                            <h4 style="margin-bottom: 6px;">No Orders Found</h4>
-                            <p style="font-size: 0.88rem; margin: 0;">We could not find any orders for <strong>${escapeHtml(q)}</strong>. If you just placed an order, please wait 1-2 minutes or check your phone number.</p>
+                        <div style="background: #fff8eb; border: 1.5px solid #fde68a; border-radius: 14px; padding: 26px 20px; text-align: center; color: #92400e; margin-top: 24px;">
+                            <i class="fas fa-box-open" style="font-size: 2.4rem; color: #d97706; margin-bottom: 10px;"></i>
+                            <h3 style="margin: 0 0 6px; color: #78350f;">No Orders Found</h3>
+                            <p style="font-size: 0.9rem; margin: 0 auto; max-width: 440px;">
+                                We could not find any active orders for <strong>${escapeHtml(query)}</strong>. Agar aapne abhi order place kiya hai toh please 1-2 minute wait karein ya mobile number check karein.
+                            </p>
+                            <a href="https://wa.me/919752937733?text=${encodeURIComponent('Hi Jainzee, I need help with my order for ' + query)}" target="_blank" class="btn-action btn-whatsapp" style="margin-top: 14px;">
+                                <i class="fab fa-whatsapp"></i> Chat on WhatsApp (+91 97529 37733)
+                            </a>
                         </div>
                     `;
                     return;
                 }
-                
+
                 container.innerHTML = `
-                    <div style="margin-bottom: 12px; font-weight: 700; color: #166534; font-size: 0.95rem;">
-                        <i class="fas fa-check-circle"></i> Found ${data.orders.length} order(s) for ${escapeHtml(q)}:
+                    <div style="margin-top: 24px; font-weight: 700; color: #166534; font-size: 1rem;">
+                        <i class="fas fa-check-circle"></i> Found ${data.orders.length} order(s) for ${escapeHtml(query)}:
                     </div>
                     ${data.orders.map(order => {
                         const items = order.items || [];
-                        const statusBadge = `<span class="order-status status-${(order.status || 'pending').toLowerCase()}">${(order.status || 'Pending').toUpperCase()}</span>`;
+                        const status = (order.status || 'placed').toLowerCase();
                         return `
-                            <div class="order-card" style="margin-bottom: 20px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0ece5; padding-bottom: 10px; margin-bottom: 12px;">
+                            <div class="order-result-card">
+                                <div class="order-card-header">
                                     <div>
-                                        <h3 style="margin: 0; font-size: 1.1rem; color: #2c1810;">Order #${order.id}</h3>
-                                        <small style="color: #8a7362;"><i class="fas fa-clock"></i> ${order.created_at || ''}</small>
+                                        <div style="font-size: 1.15rem; font-weight: 700; color: #2c1810;">
+                                            Order #${order.id}
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: #8a7362; margin-top: 2px;">
+                                            <i class="fas fa-calendar-alt"></i> Placed on ${order.created_at || 'Recent'}
+                                        </div>
                                     </div>
-                                    ${statusBadge}
+                                    <span class="order-status-pill status-${status}">
+                                        ${escapeHtml(order.status || 'Placed')}
+                                    </span>
                                 </div>
+
                                 ${buildProgressBar(order.status)}
-                                <div class="order-items" style="margin-top: 14px;">
+
+                                <div class="item-list">
                                     ${items.map(item => `
-                                        <div class="order-item">
-                                            <span>${escapeHtml(item.name_en || item.name || 'Product')} (${escapeHtml(item.variant || item.grade || 'Standard')}) x${item.quantity || item.qty || 1}</span>
-                                            <span>&#8377;${((item.unit_price || item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}</span>
+                                        <div class="item-row">
+                                            <div>
+                                                <span class="item-name">${escapeHtml(item.name_en || item.name || 'Dry Fruits')}</span>
+                                                <span class="item-variant">(${escapeHtml(item.variant || item.grade || 'Standard')}) &times; ${item.quantity || item.qty || 1}</span>
+                                            </div>
+                                            <div class="item-price">&#8377;${((item.unit_price || item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}</div>
                                         </div>
                                     `).join('')}
                                 </div>
-                                <div class="order-total" style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                                    <span style="font-size: 0.9rem; color: #5a3d2b;">Payment: <strong>${escapeHtml(order.payment_method || 'COD')}</strong></span>
-                                    <span style="font-size: 1.15rem; font-weight: 700; color: #b8860b;">Total: ${order.total || ''}</span>
+
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1.5px solid #e8e0d5;">
+                                    <span style="font-size: 0.9rem; color: #5a3d2b;">
+                                        Payment: <strong>${escapeHtml(order.payment_method || 'COD')}</strong>
+                                    </span>
+                                    <span style="font-size: 1.25rem; font-weight: 800; color: #b8860b;">
+                                        Total: ${escapeHtml(order.total || '')}
+                                    </span>
                                 </div>
-                                <div style="font-size: 0.82rem; color: #666; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #e8e0d5;">
-                                    <i class="fas fa-map-marker-alt"></i> Delivery to: ${escapeHtml(order.customer_name || '')}, ${escapeHtml(order.customer_address || '')}
+
+                                <div class="order-footer-details">
+                                    <div><i class="fas fa-user"></i> <strong>Customer:</strong> ${escapeHtml(order.customer_name || 'Valued Customer')} (${escapeHtml(order.customer_phone || '')})</div>
+                                    <div><i class="fas fa-map-marker-alt"></i> <strong>Delivery Address:</strong> ${escapeHtml(order.customer_address || 'As provided at checkout')}</div>
+                                </div>
+
+                                <div class="order-actions">
+                                    <a href="/invoice/${order.id}" target="_blank" class="btn-action btn-invoice">
+                                        <i class="fas fa-file-invoice"></i> View / Download Invoice
+                                    </a>
+                                    <a href="https://wa.me/919752937733?text=${encodeURIComponent('Hi Jainzee Food Industries, I have a query about my Order #' + order.id)}" target="_blank" class="btn-action btn-whatsapp">
+                                        <i class="fab fa-whatsapp"></i> WhatsApp Help
+                                    </a>
+                                    <button type="button" class="btn-action btn-reorder" onclick="reorderItems(${order.id})">
+                                        <i class="fas fa-redo"></i> Reorder
+                                    </button>
                                 </div>
                             </div>
                         `;
                     }).join('')}
                 `;
-            } catch (e) {
-                console.error('Tracking error:', e);
-                container.innerHTML = `<div style="color: #dc2626; padding: 12px; text-align: center;">Error searching for order. Please check connection.</div>`;
+            } catch (err) {
+                console.error('Tracking fetch error:', err);
+                showToast('Failed to connect to server. Please try again.', 'error');
             } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-location-arrow"></i> Track My Order';
-                }
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-search"></i> Track Order';
             }
         }
 
-        // ==================== DASHBOARD ====================
-        async function loadCustomerDashboard() {
+        async function reorderItems(orderId) {
             try {
-                const res = await authFetch('/api/customer/me');
-                const data = await res.json();
-                if (data.logged_in) {
-                    document.getElementById('authSection').style.display = 'none';
-                    document.getElementById('customerDashboard').classList.add('active');
-                    document.getElementById('customerName').textContent = data.customer.name;
-                    loadOrders();
-                }
-            } catch (e) {
-                console.error('Failed to load dashboard:', e);
-            }
-        }
-
-
-        // ===== ORDER TRACKING PROGRESS BAR =====
-        function buildProgressBar(status) {
-            const s = String(status || '').toLowerCase();
-            const steps = [
-                { key: 'placed',     label: 'Placed',     icon: '✓' },
-                { key: 'confirmed',  label: 'Confirmed',  icon: '✓' },
-                { key: 'shipped',    label: 'Shipped',    icon: '✓' },
-                { key: 'delivered',  label: 'Delivered',  icon: '✓' },
-            ];
-            // Map order status to step index (0=placed, 1=confirmed, 2=shipped, 3=delivered)
-            let activeIdx = 0;
-            if (s.includes('confirm')) activeIdx = 1;
-            else if (s.includes('ship'))    activeIdx = 2;
-            else if (s.includes('deliver')) activeIdx = 3;
-            else if (s.includes('cancel'))  activeIdx = -1; // cancelled: grey all
-
-            return '<div class="order-progress">' + steps.map((step, i) => {
-                let cls = 'order-progress-step';
-                if (activeIdx === -1) {
-                    cls += ''; // no highlight for cancelled
-                } else if (i < activeIdx) {
-                    cls += ' done';
-                } else if (i === activeIdx) {
-                    cls += ' done active';
-                }
-                return `<div class="${cls}">
-                    <div class="order-progress-dot">${step.icon}</div>
-                    <div class="order-progress-label">${step.label}</div>
-                </div>`;
-            }).join('') + '</div>';
-        }
-
-        async function loadOrders() {
-            try {
-                const res = await authFetch('/api/customer/orders');
-                const orders = await res.json();
-                const grid = document.getElementById('ordersGrid');
-                if (!orders.length) {
-                    grid.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-shopping-bag"></i>
-                            <h3>No orders yet</h3>
-                            <p>Browse our products and place your first order!</p>
-                            <a href="/#products" class="btn btn-primary" style="margin-top: 15px;">
-                                <i class="fas fa-box-open"></i> Browse Products
-                            </a>
-                        </div>`;
-                    return;
-                }
-                grid.innerHTML = '';
-                orders.forEach(order => {
-                    let items = [];
-                    try { items = JSON.parse(order.items); } catch(e) {}
-                    const statusClass = 'status-' + (order.status || 'pending');
-                    const statusText = (order.status || 'pending').toUpperCase();
-                    // Invoice is available immediately after order placement
-                    const invoiceBtn = `<button type="button" style="width: 100%; margin-top: 10px; padding: 10px; background: linear-gradient(135deg,#FFD700 0%,#D4AC0D 100%); color: #121212; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;" onclick="window.open('/api/orders/${order.id}/invoice','_blank')">
-                                <i class="fas fa-download"></i> Download Invoice (PDF)
-                           </button>`;
-                    const card = document.createElement('div');
-                    card.className = 'order-card';
-                    card.innerHTML = `
-                        <h3>Order #${order.id}</h3>
-                        <span class="order-status ${statusClass}">${statusText}</span>
-                        ${buildProgressBar(order.status)}
-                        <div class="order-items">
-                            ${items.map(item => `
-                                <div class="order-item">
-                                    <span style="color: #2c1810; font-weight: 500;">${item.name_en || item.name || 'Product'} <span style="color: #666666; font-size: 0.85rem; font-weight: normal;">(${item.variant || item.grade || 'Standard'}) x${item.quantity || item.qty || 1}</span></span>
-                                    <span style="color: #1a1a1a; font-weight: 600;">&#8377;${((item.unit_price || item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="order-total">Total: ${order.total}</div>
-                        <p style="font-size: 0.8rem; color: #8a7362; margin-top: 10px;">
-                            <i class="fas fa-calendar"></i> ${order.created_at}
-                        </p>
-                        <button type="button" style="width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #b8860b; background: transparent; color: #b8860b; border-radius: 8px; font-weight: 600; cursor: pointer;" onclick="reorderFromPanel(${order.id})">
-                            <i class="fas fa-rotate-right"></i> Add Again / Reorder
-                        </button>
-                        ${invoiceBtn}
-                    `;
-                    grid.appendChild(card);
-                });
-            } catch (e) {
-                console.error('Failed to load orders:', e);
-            }
-        }
-
-        async function reorderFromPanel(orderId) {
-            try {
-                const res = await authFetch('/api/reorder', {
+                const res = await fetch('/api/reorder', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ order_id: orderId })
                 });
                 const data = await res.json();
-                if (!res.ok) { alert(data.error || 'Could not reorder'); return; }
-                let msg = data.message || 'Items added to cart';
-                if (data.skipped && data.skipped.length) msg += ' (Some items were skipped)';
-                if (confirm(msg + '. Go to cart now?')) window.location.href = '/cart';
+                if (!res.ok) {
+                    showToast(data.error || 'Could not reorder', 'error');
+                    return;
+                }
+                showToast('Items added to cart successfully!', 'success');
+                setTimeout(() => window.location.href = '/cart', 800);
             } catch (e) {
-                console.error('Reorder failed:', e);
+                console.error('Reorder error:', e);
+                showToast('Could not add to cart', 'error');
             }
         }
 
-        // ==================== INIT ====================
+        // Auto-track if URL parameters present (e.g. ?phone=... or ?order_id=...)
         document.addEventListener('DOMContentLoaded', () => {
-            // Show a flash/toast passed from pages that redirected here
-            // (e.g. "Please login to view your orders.") and highlight login tab.
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('auth') === '1') {
-                document.querySelectorAll('.auth-tab')[0].classList.add('active');
-                document.getElementById('loginForm').classList.add('active');
-                document.querySelectorAll('.auth-tab')[1].classList.remove('active');
-                document.getElementById('registerForm').classList.remove('active');
+            const params = new URLSearchParams(window.location.search);
+            const query = params.get('phone') || params.get('order_id') || params.get('q');
+            if (query) {
+                const input = document.getElementById('trackInput');
+                if (input) {
+                    input.value = query;
+                    trackDirectOrder();
+                }
             }
-            const flashMsg = urlParams.get('msg');
-            if (flashMsg) {
-                if (typeof showToast === 'function') showToast(flashMsg, 'error');
-            }
-
-            // Check if returning from Firebase Email Magic Link
-            if (typeof handleFirebaseEmailLinkSignIn === 'function') {
-                handleFirebaseEmailLinkSignIn().then(result => {
-                    if (result && result.success) {
-                        showToast('Welcome back, ' + (result.customer ? result.customer.name : 'Customer') + '! Logged in successfully.');
-                        const redir = new URLSearchParams(window.location.search).get('redirect');
-                        if (redir === 'checkout') {
-                            window.location.href = '/checkout';
-                            return;
-                        }
-                        loadCustomerDashboard();
-                    }
-                }).catch(err => {
-                    console.error('Magic link sign-in error:', err);
-                    showToast(err.message || 'Email sign-in link error. Please request a new link.', 'error');
-                });
-            }
-            loadCustomerDashboard();
         });
     </script>
 
-    <!-- ===== FOOTER ===== -->
-    <footer style="background: #121212; color: #E0E0E0; text-align: center; padding: 30px 20px; margin-top: 60px; font-size: 0.9rem;">
-        <div style="max-width: 900px; margin: 0 auto;">
-            <div style="margin-bottom: 12px;">
-                <a href="/" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Home</a>
-                <a href="/#products" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Products</a>
-                <a href="/privacy" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Privacy Policy</a>
-                <a href="/terms" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Terms</a>
-                <a href="/refund" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Refund Policy</a>
-                <a href="/shipping" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Shipping Policy</a>
-                <a href="/#contact" style="color: #FFC000; text-decoration: none; margin: 0 12px;">Contact</a>
-            </div>
-            <p style="color: #888; font-size: 0.8rem; margin: 0;">&copy; <span id="currentYear"></span> Jainzee™ Food Processing Industries. All Rights Reserved.</p>
+    <footer style="background: #1a0f0a; color: #d4c5b9; text-align: center; padding: 28px 20px; font-size: 0.85rem; margin-top: 40px;">
+        <div style="max-width: 800px; margin: 0 auto;">
+            <p style="color: #ffd700; font-weight: 600; margin-bottom: 6px;">
+                Jainzee<sup>&trade;</sup> Food Processing Industries
+            </p>
+            <p style="margin-bottom: 8px; font-size: 0.8rem; color: #a8988b;">
+                Govt. Registered Trademark Brand &bull; FSSAI Lic. No: 11423850001080 &bull; Siyaganj, Indore (M.P.)
+            </p>
+            <p style="margin: 0; font-size: 0.78rem; color: #78685e;">
+                &copy; <script>document.write(new Date().getFullYear())</script> Jainzee™ Food Processing Industries. All Rights Reserved.
+            </p>
         </div>
     </footer>
 </body>
