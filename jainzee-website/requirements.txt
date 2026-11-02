@@ -7,3 +7,4 @@ psycopg2-binary==2.9.9
 pytest==8.2.2
 python-dotenv==1.0.1
 vercel_blob==0.4.2
+razorpay>=1.4.1

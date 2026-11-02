@@ -676,8 +676,8 @@ def init_db():
         'tagline_hi': 'शुद्ध और प्रीमियम ड्राई फ्रूट्स',
         'address_en': 'Siyaganj, Indore, Madhya Pradesh 452001',
         'address_hi': 'सियागंज, इंदौर, मध्य प्रदेश 452001',
-        'phone': '+91 98260 00000',
-        'whatsapp': '919826000000',
+        'phone': '+91 97529 37733',
+        'whatsapp': '919752937733',
         'email': 'info@jainzee.in',
         'hours_en': 'Mon - Sun: 10:00 AM - 9:00 PM',
         'hours_hi': 'सोम - रवि: सुबह 10:00 - रात 9:00',
@@ -691,8 +691,8 @@ def init_db():
         'global_discount_percent': '0',
         'shipping_charge': '50',
         'free_shipping_min': '1000',
-        'razorpay_key_id': '',
-        'razorpay_key_secret': '',
+        'razorpay_key_id': os.environ.get('RAZORPAY_KEY_ID', ''),
+        'razorpay_key_secret': os.environ.get('RAZORPAY_KEY_SECRET', ''),
         'twilio_account_sid': os.environ.get('TWILIO_ACCOUNT_SID', ''),
         'twilio_auth_token': os.environ.get('TWILIO_AUTH_TOKEN', ''),
         'twilio_verify_service_sid': os.environ.get('TWILIO_VERIFY_SERVICE_SID', ''),
@@ -704,6 +704,12 @@ def init_db():
     }
     for k, v in default_settings.items():
         cur.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
+    # UPDATE existing phone/whatsapp if they still have placeholder
+    cur.execute("UPDATE settings SET value='+91 97529 37733' WHERE key='phone' AND value='+91 98260 00000'")
+    cur.execute("UPDATE settings SET value='919752937733' WHERE key='whatsapp' AND value='919826000000'")
+    cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_id' AND (value='' OR value IS NULL)", (os.environ.get('RAZORPAY_KEY_ID',''),))
+    cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_secret' AND (value='' OR value IS NULL)", (os.environ.get('RAZORPAY_KEY_SECRET',''),))
+
 
     cur.executemany(
         '''INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku)
@@ -3098,6 +3104,7 @@ def api_cart_count():
 
 # ---------------- RAZORPAY INTEGRATION ----------------
 
+@app.route('/api/create-order', methods=['POST'])
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
@@ -3216,6 +3223,70 @@ def api_razorpay_create_order():
     except Exception as e:
         print(f"[RAZORPAY EXCEPTION] {e}")
         return jsonify({'error': f"Failed to connect to Razorpay: {str(e)}"}), 500
+
+
+# ── Guest Checkout Helper ─────────────────────────────────────────────────────
+def _resolve_guest_customer_id(conn, name, phone, session):
+    """Return customer_id for a guest (or logged-in) user.
+    Priority: 1) session  2) JWT  3) existing DB row by phone  4) new guest row.
+    Never blocks checkout – always returns an int or None.
+    """
+    cid = session.get('customer_id')
+    if cid:
+        return cid
+    try:
+        jwt_cid, _ = get_jwt_customer()
+        if jwt_cid:
+            return jwt_cid
+    except Exception:
+        pass
+    # Lookup or create by phone
+    if phone:
+        row = conn.execute('SELECT id FROM customers WHERE phone=?', (phone,)).fetchone()
+        if row:
+            return row['id']
+        cur2 = conn.execute(
+            "INSERT INTO customers (name, phone, password_hash) VALUES (?, ?, '')",
+            (name or 'Guest', phone)
+        )
+        return cur2.lastrowid
+    return None
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/verify-payment', methods=['POST'])
+def api_verify_payment():
+    data = request.get_json() or {}
+    razorpay_order_id = str(data.get('razorpay_order_id', '')).strip()
+    razorpay_payment_id = str(data.get('razorpay_payment_id', '')).strip()
+    razorpay_signature = str(data.get('razorpay_signature', '')).strip()
+
+    if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
+        return jsonify({'success': False, 'message': 'Missing payment verification fields'}), 400
+
+    key_secret = get_config_setting('razorpay_key_secret')
+    if not key_secret:
+        return jsonify({'success': False, 'message': 'Razorpay secret not configured'}), 500
+
+    expected_sig = hmac.new(
+        key_secret.encode('utf-8'),
+        f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_sig, razorpay_signature):
+        return jsonify({'success': False, 'message': 'Invalid payment signature'}), 400
+
+    order_id = data.get('order_id')
+    if order_id:
+        conn = get_db()
+        conn.execute(
+            "UPDATE orders SET status='paid_razorpay', razorpay_payment_id=?, razorpay_signature=? WHERE id=? OR razorpay_order_id=?",
+            (razorpay_payment_id, razorpay_signature, order_id, razorpay_order_id)
+        )
+        conn.commit()
+        conn.close()
+
+    return jsonify({'success': True, 'order_id': order_id, 'message': 'Payment signature verified successfully'})
 
 @app.route('/api/checkout', methods=['POST'])
 def api_checkout():
@@ -3377,7 +3448,7 @@ def api_checkout():
         'INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, items, total, status, subtotal, discount_amount, shipping_charge, coupon_code, payment_method, razorpay_order_id, razorpay_payment_id, razorpay_signature) '
         'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         (
-            session.get('customer_id') or (get_jwt_customer()[0]),
+            _resolve_guest_customer_id(conn, customer_name, customer_phone, session),
             customer_name, customer_phone, customer_address,
             json_mod.dumps(order_items_snapshot),
             '₹' + str(round(final_total, 2)), order_status,

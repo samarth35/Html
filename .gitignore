@@ -20,6 +20,9 @@ htmlcov/
 
 # Temporary / test generated invoices & PDFs
 *.pdf
+.env
+.env.*
+*.env
 
 # OS artifacts & editor backups
 .DS_Store
