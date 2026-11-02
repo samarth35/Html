@@ -298,7 +298,7 @@
 
         // ===== PARCEL SHIPPING STICKER =====
         function printParcelSticker(order) {
-            const shopName = 'JAINZEE FOOD PROCESSING INDUSTRIES';
+            const shopName = 'JAINZEE™ FOOD PROCESSING INDUSTRIES';
             const shopAddr = 'Siyaganj, Indore, Madhya Pradesh - 452001';
             const shopPhone = '+91 97529 37733';
             const payMethod = String(order.status || '').toLowerCase().includes('upi') ? 'PREPAID (UPI)' : 'COD';
@@ -350,7 +350,7 @@
   <div class="value big" style="text-align:center; font-size:22px; font-weight:900;">${order.total || '-'}</div>
 
   <div class="footer">
-    ${new Date().toLocaleString('en-IN')} | Jainzee Food Processing Industries<br>
+    ${new Date().toLocaleString('en-IN')} | Jainzee™ Food Processing Industries<br>
     Handle with care. Subject to Indore jurisdiction.
   </div>
 </body>
