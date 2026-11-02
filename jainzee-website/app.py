@@ -1287,14 +1287,18 @@ def api_customer_login():
     conn.close()
 
     pw_ok = False
-    if row and row.get('password_hash'):
+    if row:
         try:
-            pw_ok = check_password_hash(row['password_hash'], password)
+            pw_hash = row['password_hash']
+            if pw_hash:
+                try:
+                    pw_ok = check_password_hash(pw_hash, password)
+                except Exception:
+                    pw_ok = False
+                if not pw_ok and pw_hash == password:
+                    pw_ok = True
         except Exception:
             pw_ok = False
-        # Backwards compatibility check
-        if not pw_ok and row['password_hash'] == password:
-            pw_ok = True
 
     if not row or not pw_ok:
         return jsonify({'error': 'Invalid email/phone or password'}), 400
@@ -2200,6 +2204,14 @@ def admin_login():
 
         # Fast path 1: Instant match against environment password (0ms DB delay)
         if env_password and password == env_password:
+            try:
+                conn = get_db()
+                conn.execute("UPDATE settings SET value=? WHERE key='password_hash'",
+                             (generate_password_hash(env_password),))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
             rate_limit_clear('admin')
             session['admin_logged_in'] = True
             return redirect(url_for('admin_dashboard'))

@@ -856,29 +856,25 @@ async function fetchProducts() {
 // ==================== APPLY SITE DATA ====================
 
 function applySiteData() {
-    // Shop name with guaranteed trademark (™)
-    function formatWithTm(name, isHi) {
-        if (!name) return isHi ? 'जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' : 'Jainzee™ Food Processing Industries';
-        // Strip any corrupted 'T' from JainzeeT or old artifacts
+    // Shop name with guaranteed trademark superscript (™)
+    function formatWithTmHtml(name, isHi) {
+        if (!name) return isHi ? 'जैनज़ी<sup style="font-size:0.6em;vertical-align:super;line-height:0;">&trade;</sup> फूड प्रोसेसिंग इंडस्ट्रीज़' : 'Jainzee<sup style="font-size:0.6em;vertical-align:super;line-height:0;">&trade;</sup> Food Processing Industries';
         let clean = name.replace(/JainzeeT/g, 'Jainzee').replace(/Jainzee™/g, 'Jainzee');
         clean = clean.replace(/जैनज़ी™/g, 'जैनज़ी');
-        return isHi ? clean.replace(/जैनज़ी/g, 'जैनज़ी™') : clean.replace(/Jainzee/g, 'Jainzee™');
+        return isHi ? clean.replace(/जैनज़ी/g, 'जैनज़ी<sup style="font-size:0.6em;vertical-align:super;line-height:0;">&trade;</sup>') : clean.replace(/Jainzee/g, 'Jainzee<sup style="font-size:0.6em;vertical-align:super;line-height:0;">&trade;</sup>');
     }
     const isHi = (currentLang === 'hi');
-    const dynamicShopName = formatWithTm(isHi ? siteData.shop_name_hi : siteData.shop_name_en, isHi);
-    setText('heroShopName', dynamicShopName);
-    setText('navShopName', dynamicShopName);
-    setText('mobileNavShopName', dynamicShopName);
-    setText('mobileMenuTitle', dynamicShopName);
-    setText('footerShopName', dynamicShopName);
-    setText('footerName', dynamicShopName);
-    // Only update the page title when a VALID shop name exists.
-    // Never allow "undefined" or empty values to replace the default title.
-    const shopNameForTitle = currentLang === 'hi' ? siteData.shop_name_hi : siteData.shop_name_en;
-    if (shopNameForTitle && typeof shopNameForTitle === 'string' &&
-        shopNameForTitle.trim() !== '' && shopNameForTitle !== 'undefined') {
-        document.title = shopNameForTitle.trim() + ' - Dry Fruits';
-    }
+    const dynamicShopHtml = formatWithTmHtml(isHi ? siteData.shop_name_hi : siteData.shop_name_en, isHi);
+    setHtml('heroShopName', dynamicShopHtml);
+    setHtml('navShopName', dynamicShopHtml);
+    setHtml('mobileNavShopName', dynamicShopHtml);
+    setHtml('mobileMenuTitle', dynamicShopHtml);
+    setHtml('footerShopName', dynamicShopHtml);
+    setHtml('footerName', dynamicShopHtml);
+
+    // Clean plain title for browser tab
+    const plainShopName = isHi ? 'जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' : 'Jainzee™ Food Processing Industries';
+    document.title = plainShopName + ' - Dry Fruits';
 
     // Tagline
     setText('heroTagline', currentLang === 'hi' ? siteData.tagline_hi : siteData.tagline_en);
