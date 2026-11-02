@@ -92,7 +92,12 @@ if BLOB_READ_WRITE_TOKEN:
 USE_BLOB_STORAGE = bool(BLOB_READ_WRITE_TOKEN)
 BLOB_URL_MARKER = '.blob.vercel-storage.com'
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, 'templates'),
+    static_folder=os.path.join(BASE_DIR, 'static'),
+    static_url_path='/static'
+)
 
 # Register robust JSON provider to safely serialize datetime, date and Decimal from Postgres
 from decimal import Decimal
