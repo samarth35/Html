@@ -8,18 +8,6 @@
   ],
   "routes": [
     {
-      "src": "/assets/(.*)",
-      "dest": "jainzee-website/static/assets/$1"
-    },
-    {
-      "src": "/images/(.*)",
-      "dest": "jainzee-website/static/images/$1"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "jainzee-website/static/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "jainzee-website/app.py"
     }
