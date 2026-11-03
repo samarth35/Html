@@ -182,53 +182,55 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
     setCouponInput('');
   };
 
+  const placeOrderNow = (overrideMethod?: 'COD' | 'UPI' | 'Razorpay', razorpayPaymentId?: string) => {
+    if (!customerName.trim() || !customerPhone.trim() || !customerAddress.trim()) return;
+
+    const newOrder: Order = {
+      id: `JZ-${Math.floor(1050 + Math.random() * 8900)}`,
+      createdAt: new Date().toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      status: 'Confirmed',
+      customer: {
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+        email: customerEmail.trim(),
+        address: customerAddress.trim(),
+        city: customerCity.trim(),
+        pincode: customerPincode.trim(),
+        distanceKm,
+      },
+      paymentMethod: overrideMethod || paymentMethod,
+      items: detailedItems.map((i) => ({
+        productId: i.productId,
+        name_en: i.product.name_en,
+        name_hi: i.product.name_hi,
+        gradeLabel: i.grade.label,
+        quantity: i.quantity,
+        unitPrice: i.grade.price,
+        lineTotal: i.lineTotal,
+      })),
+      subtotal,
+      discount,
+      couponCode: appliedCoupon?.code,
+      shipping,
+      distanceKm,
+      total,
+    };
+
+    onPlaceOrder(newOrder);
+    onClearCart();
+    setStep('cart');
+    onClose();
+  };
+
   const handleCompleteOrder = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !customerPhone.trim() || !customerAddress.trim()) return;
-
-    const placeOrderNow = (razorpayPaymentId?: string) => {
-      const newOrder: Order = {
-        id: `JZ-${Math.floor(1050 + Math.random() * 8900)}`,
-        createdAt: new Date().toLocaleString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        status: 'Confirmed',
-        customer: {
-          name: customerName.trim(),
-          phone: customerPhone.trim(),
-          email: customerEmail.trim(),
-          address: customerAddress.trim(),
-          city: customerCity.trim(),
-          pincode: customerPincode.trim(),
-          distanceKm,
-        },
-        paymentMethod,
-        items: detailedItems.map((i) => ({
-          productId: i.productId,
-          name_en: i.product.name_en,
-          name_hi: i.product.name_hi,
-          gradeLabel: i.grade.label,
-          quantity: i.quantity,
-          unitPrice: i.grade.price,
-          lineTotal: i.lineTotal,
-        })),
-        subtotal,
-        discount,
-        couponCode: appliedCoupon?.code,
-        shipping,
-        distanceKm,
-        total,
-      };
-
-      onPlaceOrder(newOrder);
-      onClearCart();
-      setStep('cart');
-      onClose();
-    };
 
     if (paymentMethod === 'Razorpay') {
       setPaymentError('');
@@ -278,7 +280,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                 return;
               }
             }
-            placeOrderNow(response.razorpay_payment_id);
+            placeOrderNow('Razorpay', response.razorpay_payment_id);
           },
           modal: {
             ondismiss: function () {
@@ -763,7 +765,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                         onClick={() => {
                           setPaymentMethod('COD');
                           setPaymentError('');
-                          placeOrderNow();
+                          placeOrderNow('COD');
                         }}
                         className="w-full py-2 px-3 bg-stone-900 hover:bg-stone-800 text-amber-400 font-semibold rounded-md shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
                       >

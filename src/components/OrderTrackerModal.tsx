@@ -93,7 +93,7 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
             </div>
           ) : (
             filteredOrders.map((order) => {
-              const currentStageIdx = STAGES.indexOf(order.status);
+              const currentStageIdx = (STAGES as readonly string[]).indexOf(order.status);
 
               return (
                 <div
