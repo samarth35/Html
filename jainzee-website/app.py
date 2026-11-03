@@ -1227,6 +1227,14 @@ def api_products():
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory(os.path.join(BASE_DIR, 'static', 'assets'), filename)
+
+@app.route('/images/<path:filename>')
+def serve_images(filename):
+    return send_from_directory(os.path.join(BASE_DIR, 'static', 'images'), filename)
+
 # ---------------- CUSTOMER ROUTES ----------------
 
 @app.route('/track')
