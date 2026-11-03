@@ -130,6 +130,7 @@ export interface StoreSettings {
   gstin: string;
   gstRatePercent: number;
   freeShippingThreshold: number;
+  freeShippingMaxKm?: number;
   perKmRate: number;
   baseDeliveryCharge: number;
   minDiwaliBoxPriceAfterDiscount: number;

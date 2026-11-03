@@ -177,11 +177,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <Truck className="w-3.5 h-3.5" />
                   {isFreeShipping
                     ? lang === 'hi'
-                      ? 'फ्री डिलीवरी उपलब्ध'
-                      : 'Free Delivery Included'
+                      ? '7 km तक फ्री डिलीवरी'
+                      : 'Free Delivery up to 7 km'
                     : lang === 'hi'
-                    ? 'डिलीवरी चार्ज: ₹30 (₹999+ पर फ्री)'
-                    : 'Delivery: ₹30 (Free on ₹999+)'}
+                    ? 'डिलीवरी: दूरी अनुसार (₹999+ पर 7 km फ्री)'
+                    : 'Delivery: KM-based (Free up to 7 km on ₹999+)'}
                 </span>
               </div>
 

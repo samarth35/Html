@@ -11,7 +11,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { CartItem, Coupon, Language, Order, Product, StoreSettings } from '../types';
-import { calculateKmDeliveryCharge, STORE_INFO } from '../data/storeData';
+import { calculateKmDeliveryCharge, calculateOrderShippingCharge, STORE_INFO } from '../data/storeData';
 
 interface CartCheckoutDrawerProps {
   isOpen: boolean;
@@ -127,16 +127,22 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
   }
 
   const freeShippingMin = settings.freeShippingThreshold || STORE_INFO.freeShippingThreshold || 999;
-  const isFreeShippingUnlocked = subtotal >= freeShippingMin;
+  const freeShippingMaxKm = settings.freeShippingMaxKm || STORE_INFO.freeShippingMaxKm || 7;
   const amountForFreeShipping = Math.max(0, freeShippingMin - subtotal);
 
-  const kmShippingCharge = calculateKmDeliveryCharge(
+  const shippingInfo = calculateOrderShippingCharge(
+    subtotal,
     distanceKm,
+    freeShippingMin,
+    freeShippingMaxKm,
     settings.perKmRate || STORE_INFO.perKmRate,
     settings.baseDeliveryCharge || STORE_INFO.baseDeliveryCharge
   );
 
-  const shipping = subtotal === 0 ? 0 : isFreeShippingUnlocked ? 0 : kmShippingCharge;
+  const shipping = shippingInfo.shipping;
+  const isAboveMinOrder = shippingInfo.isAboveMinOrder;
+  const isFreeKmQualified = shippingInfo.isFreeKmQualified;
+  const extraKm = shippingInfo.extraKm;
 
   const total = Math.max(0, subtotal - discount + shipping);
 
@@ -370,22 +376,30 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
           </button>
         </div>
 
-        {/* Free Delivery on ₹999+ / KM-Based Delivery Info Bar */}
+        {/* Free Delivery on ₹999+ (Up to 7 km) / KM-Based Delivery Info Bar */}
         {detailedItems.length > 0 && (
           <div className="px-6 py-2.5 bg-stone-900 text-stone-100 text-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Truck className="w-4 h-4 text-amber-400 shrink-0" />
-              {isFreeShippingUnlocked ? (
-                <span className="text-emerald-300 font-semibold">
-                  {lang === 'hi'
-                    ? 'बधाई हो! ₹999+ ऑर्डर पर फ्री डिलीवरी लागू है!'
-                    : 'Unlocked: FREE Delivery on orders ₹999 & above!'}
-                </span>
+              {isAboveMinOrder ? (
+                isFreeKmQualified ? (
+                  <span className="text-emerald-300 font-semibold">
+                    {lang === 'hi'
+                      ? `बधाई हो! ₹999+ ऑर्डर पर 7 km तक फ्री डिलीवरी लागू है! (${distanceKm} km)`
+                      : `Unlocked: FREE Delivery up to 7 km on orders ₹999+! (${distanceKm} km)`}
+                  </span>
+                ) : (
+                  <span className="text-amber-300 font-medium">
+                    {lang === 'hi'
+                      ? `₹999+ ऑर्डर: 7 km फ्री + ${extraKm} km अतिरिक्त दूरी का चार्ज (₹${shipping})`
+                      : `₹999+ Order: First 7 km FREE + ₹${shipping} for ${extraKm} km extra`}
+                  </span>
+                )
               ) : (
                 <span>
                   {lang === 'hi'
-                    ? `फ्री डिलीवरी के लिए ₹${amountForFreeShipping} और जोड़ें (अभी ${distanceKm} km: ₹${shipping})`
-                    : `Add ₹${amountForFreeShipping} more for FREE Delivery (Below ₹999: ${distanceKm} km → ₹${shipping})`}
+                    ? `₹999+ पर 7 km फ्री डिलीवरी के लिए ₹${amountForFreeShipping} और जोड़ें (अभी ${distanceKm} km: ₹${shipping})`
+                    : `Add ₹${amountForFreeShipping} more for FREE Delivery up to 7 km (Below ₹999: ${distanceKm} km → ₹${shipping})`}
                 </span>
               )}
             </div>
@@ -481,9 +495,13 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                             : 'Delivery Distance (FREE on ₹999+, KM-based below ₹999)'}
                         </span>
                       </div>
-                      {isFreeShippingUnlocked ? (
+                      {isAboveMinOrder && isFreeKmQualified ? (
                         <span className="font-mono text-xs font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded">
-                          FREE (₹999+ Order)
+                          FREE (₹999+ & ≤7 km)
+                        </span>
+                      ) : isAboveMinOrder ? (
+                        <span className="font-mono text-xs font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                          7 km FREE + {extraKm} km extra → ₹{shipping}
                         </span>
                       ) : (
                         <span className="font-mono text-xs font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
@@ -825,8 +843,12 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                 <span>
                   {shipping === 0
                     ? lang === 'hi'
-                      ? 'डिलीवरी चार्ज (₹999+ ऑर्डर पर मुफ्त)'
-                      : 'Delivery Charge (Free on ₹999+)'
+                      ? 'डिलीवरी चार्ज (₹999+ ऑर्डर पर 7 km तक मुफ्त)'
+                      : 'Delivery Charge (Free up to 7 km on ₹999+)'
+                    : isAboveMinOrder
+                    ? lang === 'hi'
+                      ? `डिलीवरी चार्ज (7 km फ्री + ${extraKm} km अतिरिक्त दूरी)`
+                      : `Delivery Charge (7 km FREE + ${extraKm} km extra distance)`
                     : lang === 'hi'
                     ? `डिलीवरी चार्ज (${distanceKm} km के हिसाब से)`
                     : `Delivery Charge (${distanceKm} km from Siyaganj)`}

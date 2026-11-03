@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Sparkles,
@@ -10,6 +10,10 @@ import {
   Gift,
   Copy,
   Check,
+  Volume2,
+  VolumeX,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { Language } from '../types';
 import { STORE_INFO } from '../data/storeData';
@@ -30,6 +34,48 @@ export const DiwaliSpecialPopup: React.FC<DiwaliSpecialPopupProps> = ({
   const [quantity, setQuantity] = useState(1);
   const [copiedCode, setCopiedCode] = useState(false);
   const [activeMedia, setActiveMedia] = useState<'video' | 'inside' | 'lid'>('video');
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (isOpen && activeMedia === 'video' && videoRef.current) {
+      videoRef.current.defaultMuted = true;
+      videoRef.current.muted = isMuted;
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => setIsPlaying(true))
+          .catch(() => {
+            if (videoRef.current) {
+              videoRef.current.muted = true;
+              setIsMuted(true);
+              videoRef.current
+                .play()
+                .then(() => setIsPlaying(true))
+                .catch(() => setIsPlaying(false));
+            }
+          });
+      }
+    }
+  }, [isOpen, activeMedia, isMuted]);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+    const nextMuted = !videoRef.current.muted;
+    videoRef.current.muted = nextMuted;
+    setIsMuted(nextMuted);
+  };
 
   if (!isOpen) return null;
 
@@ -85,15 +131,52 @@ export const DiwaliSpecialPopup: React.FC<DiwaliSpecialPopupProps> = ({
           <div className="md:col-span-6 space-y-3">
             <div className="relative aspect-square w-full rounded-xl overflow-hidden border border-amber-400/30 bg-stone-900 shadow-lg">
               {activeMedia === 'video' ? (
-                <video
-                  src={STORE_INFO.diwaliVideoUrl}
-                  poster="/images/diwali-gift-box.jpg"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                <div className="relative w-full h-full group">
+                  <video
+                    ref={videoRef}
+                    poster="/images/diwali-gift-box.jpg"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    preload="auto"
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onClick={togglePlay}
+                    className="w-full h-full object-cover cursor-pointer"
+                  >
+                    <source src={STORE_INFO.diwaliVideoUrl} type="video/mp4" />
+                    <source src="/static/uploads/diwali_special_edited.mp4" type="video/mp4" />
+                  </video>
+
+                  {/* Video Playback & Sound Control Buttons */}
+                  <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePlay();
+                      }}
+                      className="w-7 h-7 rounded-full bg-stone-950/80 hover:bg-stone-950 text-amber-300 flex items-center justify-center backdrop-blur-xs border border-white/20 transition-transform active:scale-95 cursor-pointer shadow-md"
+                      title={isPlaying ? 'Pause Video' : 'Play Video'}
+                      aria-label={isPlaying ? 'Pause Video' : 'Play Video'}
+                    >
+                      {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5 fill-current" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMute();
+                      }}
+                      className="w-7 h-7 rounded-full bg-stone-950/80 hover:bg-stone-950 text-amber-300 flex items-center justify-center backdrop-blur-xs border border-white/20 transition-transform active:scale-95 cursor-pointer shadow-md"
+                      title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
+                      aria-label={isMuted ? 'Unmute Sound' : 'Mute Sound'}
+                    >
+                      {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
               ) : activeMedia === 'inside' ? (
                 <img
                   src="/images/diwali-gift-box.jpg"

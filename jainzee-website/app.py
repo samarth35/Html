@@ -3364,8 +3364,12 @@ def api_razorpay_create_order():
     conn.close()
 
     amount_before_shipping = subtotal - global_discount_amount - coupon_discount
-    if shipping_charge > 0 and free_shipping_min > 0 and amount_before_shipping >= free_shipping_min:
-        shipping_charge = 0.0
+    distance_km = float(data.get('distance_km') or data.get('distanceKm') or 0.0)
+    if free_shipping_min > 0 and amount_before_shipping >= free_shipping_min:
+        if distance_km <= 7.0:
+            shipping_charge = 0.0
+        else:
+            shipping_charge = round((distance_km - 7.0) * 4.0)
 
     if not amount_in_paise:
         final_total = max(0.0, subtotal - global_discount_amount - coupon_discount + shipping_charge)
@@ -3649,8 +3653,18 @@ def api_checkout():
     except (ValueError, TypeError):
         free_shipping_min = 0.0
     amount_before_shipping = subtotal - global_discount_amount - coupon_discount
-    if shipping_charge > 0 and free_shipping_min > 0 and amount_before_shipping >= free_shipping_min:
-        shipping_charge = 0.0  # free shipping threshold reached
+    distance_km = float(data.get('distance_km') or data.get('distanceKm') or 0.0)
+    client_shipping = data.get('shipping') or data.get('shipping_charge')
+    if client_shipping is not None and str(client_shipping).strip() != '':
+        try:
+            shipping_charge = float(re.sub(r'[₹,\s]', '', str(client_shipping)))
+        except (ValueError, TypeError):
+            pass
+    elif free_shipping_min > 0 and amount_before_shipping >= free_shipping_min:
+        if distance_km <= 7.0:
+            shipping_charge = 0.0
+        else:
+            shipping_charge = round((distance_km - 7.0) * 4.0)
     
     total_discount = global_discount_amount + coupon_discount
     final_total = subtotal - total_discount + shipping_charge

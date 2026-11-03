@@ -796,12 +796,12 @@
             if (freeShippingMin > 0) {
                 if (amountBeforeShipping >= freeShippingMin) {
                     banner.className = 'free-delivery-banner';
-                    banner.innerHTML = 'You qualify for FREE delivery! 🎉';
+                    banner.innerHTML = 'You qualify for FREE delivery up to 7 km! 🎉';
                 } else {
                     const diff = freeShippingMin - amountBeforeShipping;
                     banner.className = 'free-delivery-banner progress';
-                    banner.innerHTML = 'Add ₹' + diff.toLocaleString('en-IN') + ' more for FREE delivery' +
-                        '<small>Free delivery on orders above ₹' + freeShippingMin.toLocaleString('en-IN') + '</small>';
+                    banner.innerHTML = 'Add ₹' + diff.toLocaleString('en-IN') + ' more for FREE delivery up to 7 km' +
+                        '<small>Free delivery up to 7 km on orders above ₹' + freeShippingMin.toLocaleString('en-IN') + '</small>';
                 }
                 banner.style.display = '';
             } else {

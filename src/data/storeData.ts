@@ -15,6 +15,7 @@ export const STORE_INFO = {
   hours_en: 'Mon - Sun: 10:00 AM - 9:00 PM',
   hours_hi: 'सोम - रवि: सुबह 10:00 - रात 9:00',
   freeShippingThreshold: 999,
+  freeShippingMaxKm: 7,
   perKmRate: 5,
   baseDeliveryCharge: 15,
   minDiwaliBoxPriceAfterDiscount: 1300,
@@ -48,6 +49,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   gstin: '',
   gstRatePercent: 5,
   freeShippingThreshold: 999,
+  freeShippingMaxKm: 7,
   perKmRate: 5,
   baseDeliveryCharge: 15,
   minDiwaliBoxPriceAfterDiscount: 1300,
@@ -69,6 +71,40 @@ export function calculateKmDeliveryCharge(
   if (km <= 15) return baseCharge + km * perKmRate;
   if (km <= 50) return Math.round(90 + (km - 15) * 2.5);
   return Math.min(250, Math.round(175 + (km - 50) * 0.5));
+}
+
+export function calculateOrderShippingCharge(
+  subtotal: number,
+  distanceKm: number,
+  freeThreshold = STORE_INFO.freeShippingThreshold,
+  freeMaxKm = STORE_INFO.freeShippingMaxKm,
+  perKmRate = STORE_INFO.perKmRate,
+  baseCharge = STORE_INFO.baseDeliveryCharge
+): {
+  shipping: number;
+  isAboveMinOrder: boolean;
+  isFreeKmQualified: boolean;
+  extraKm: number;
+} {
+  if (subtotal <= 0) {
+    return { shipping: 0, isAboveMinOrder: false, isFreeKmQualified: true, extraKm: 0 };
+  }
+  const km = Math.max(1, Math.round(distanceKm || 1));
+  const isAboveMinOrder = subtotal >= freeThreshold;
+  const isFreeKmQualified = km <= freeMaxKm;
+
+  if (isAboveMinOrder) {
+    if (isFreeKmQualified) {
+      return { shipping: 0, isAboveMinOrder, isFreeKmQualified: true, extraKm: 0 };
+    }
+    const extraKm = km - freeMaxKm;
+    // Discounted rate for extra distance (Rs 4/km without standard base charge)
+    const extraShipping = Math.max(10, Math.round(extraKm * 4));
+    return { shipping: extraShipping, isAboveMinOrder, isFreeKmQualified: false, extraKm };
+  }
+
+  const standardShipping = calculateKmDeliveryCharge(km, perKmRate, baseCharge);
+  return { shipping: standardShipping, isAboveMinOrder: false, isFreeKmQualified, extraKm: 0 };
 }
 
 export const INITIAL_PRODUCTS: Product[] = [

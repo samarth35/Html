@@ -70,8 +70,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Tag className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>
                 {lang === 'hi'
-                  ? '10% छूट कूपन: JAINZEE10 / DIWALI10 • ₹999+ पर फ्री डिलीवरी (नीचे KM के हिसाब से)'
-                  : '10% OFF Code: JAINZEE10 / DIWALI10 • FREE Delivery on ₹999+ (Below ₹999: KM-based)'}
+                  ? '10% छूट कूपन: JAINZEE10 / DIWALI10 • ₹999+ पर 7 km तक फ्री डिलीवरी'
+                  : '10% OFF Code: JAINZEE10 / DIWALI10 • FREE Delivery up to 7 km on ₹999+'}
               </span>
             </div>
             <button
