@@ -949,11 +949,21 @@ const name = document.getElementById('checkoutName').value.trim();
                 };
                 const rzp1 = new Razorpay(options);
                 rzp1.on('payment.failed', function (resp) {
-                    alert('Payment Failed: ' + (resp.error ? resp.error.description : 'Transaction was declined'));
+                    alert('Payment Failed: ' + (resp.error ? resp.error.description : 'Transaction was declined') + '\n\nTip: Cash on Delivery (COD) se order turant place kar sakte hain.');
+                    const codRadio = document.getElementById('payCod');
+                    if (codRadio) {
+                        codRadio.checked = true;
+                        if (typeof updatePaymentMethodUI === 'function') updatePaymentMethodUI();
+                    }
                 });
                 rzp1.open();
             } catch(e) {
-                alert('Error: ' + e.message);
+                alert('Payment Notice: ' + e.message + '\n\nCash on Delivery (COD) select kar diya gaya hai, aap directly order place kar sakte hain.');
+                const codRadio = document.getElementById('payCod');
+                if (codRadio) {
+                    codRadio.checked = true;
+                    if (typeof updatePaymentMethodUI === 'function') updatePaymentMethodUI();
+                }
             }
         }
 

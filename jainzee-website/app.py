@@ -356,14 +356,22 @@ class _PostgresCursor:
 
 def get_config_setting(key, default=''):
     """Fetch setting from DB first, then fallback to environment variables."""
+    val = ''
     try:
         conn = get_db()
         row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
         conn.close()
         if row and str(row['value'] or '').strip():
-            return str(row['value']).strip()
+            val = str(row['value']).strip()
     except Exception:
         pass
+    # Guard against legacy revoked test credentials
+    if key == 'razorpay_key_id' and (not val or val == 'rzp_test_TvNiX34TPC0UOV'):
+        val = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvlkUOYtdO9Ngn'
+    elif key == 'razorpay_key_secret' and (not val or val == 'UserFlH9eIpM0GeKw0kV4qRB'):
+        val = os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
+    if val:
+        return val
     env_val = os.environ.get(key.upper()) or os.environ.get(key)
     if env_val and str(env_val).strip():
         return str(env_val).strip()
@@ -1202,6 +1210,8 @@ def api_site():
     for r in rows:
         if r['key'] in PUBLIC_SETTINGS_KEYS:
             data[r['key']] = r['value']
+    if 'razorpay_key_id' in data and data['razorpay_key_id'] in ('rzp_test_TvNiX34TPC0UOV', '', None):
+        data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvlkUOYtdO9Ngn'
     return jsonify(data)
 
 @app.route('/admin/api/settings')
@@ -3398,6 +3408,10 @@ def api_razorpay_create_order():
     except urllib.error.HTTPError as e:
         err_msg = e.read().decode()
         print(f"[RAZORPAY ERROR {e.code}] {err_msg}")
+        if e.code == 401:
+            return jsonify({
+                'error': 'Razorpay Authentication failed (Invalid or deactivated Key ID/Secret). Kripya Razorpay Dashboard se naya Test Key ID generate karein ya Cash on Delivery (COD) se order karein.'
+            }), 401
         try:
             err_json = json.loads(err_msg)
             return jsonify({'error': err_json.get('error', {}).get('description', f"Razorpay error {e.code}")}), 400

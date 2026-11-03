@@ -738,8 +738,19 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
 
                 <div className="grid grid-cols-1 gap-2.5">
                   {paymentError && (
-                    <div className="p-3 text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg">
-                      {paymentError}
+                    <div className="p-3 text-xs bg-red-50 border border-red-300 text-red-900 rounded-lg space-y-2">
+                      <div className="font-semibold">{paymentError}</div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPaymentMethod('COD');
+                          setPaymentError('');
+                          placeOrderNow();
+                        }}
+                        className="w-full py-2 px-3 bg-stone-900 hover:bg-stone-800 text-amber-400 font-semibold rounded-md shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        {lang === 'hi' ? 'कैश ऑन डिलीवरी (COD) से तुरंत ऑर्डर पूरा करें' : 'Complete Order instantly via Cash on Delivery (COD)'}
+                      </button>
                     </div>
                   )}
                   {(
