@@ -30,3 +30,6 @@ Thumbs.db
 *.swp
 *.bak
 *~
+
+# dist/
+jainzee-website/.env
