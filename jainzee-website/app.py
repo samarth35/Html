@@ -98,6 +98,7 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, 'static'),
     static_url_path='/static'
 )
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 604800
 
 # Register robust JSON provider to safely serialize datetime, date and Decimal from Postgres
 from decimal import Decimal
@@ -897,7 +898,11 @@ def csrf_set_cookie(response):
     token = request.cookies.get('csrf_token') or getattr(g, 'csrf_token', None)
     if token:
         response.set_cookie('csrf_token', token, samesite='Lax', httponly=False)
-    if response.content_type and 'text/html' in response.content_type:
+    if request.path.startswith('/static/'):
+        response.headers['Cache-Control'] = 'public, max-age=604800, stale-while-revalidate=86400'
+        response.headers.pop('Pragma', None)
+        response.headers.pop('Expires', None)
+    elif response.content_type and 'text/html' in response.content_type:
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'

@@ -714,16 +714,17 @@ document.addEventListener('keydown', (e) => {
 // given URL. Add a cache-busting param so a freshly uploaded video shows at once.
 function applyHomepageVideo(url) {
     if (!url) return;
-    const bustedUrl = url + (url.indexOf('?') === -1 ? '?t=' : '&t=') + Date.now();
+    // On mobile devices (<=768px), don't stream heavy background video
+    if (window.innerWidth <= 768) return;
 
     const heroVideoContainer = document.getElementById('heroVideoContainer');
     const heroVideo = document.getElementById('heroVideo');
     const heroVideoSource = document.getElementById('heroVideoSource');
     if (heroVideoContainer && heroVideo) {
         if (heroVideoSource) {
-            heroVideoSource.src = bustedUrl;
+            heroVideoSource.src = url;
         } else {
-            heroVideo.src = bustedUrl;
+            heroVideo.src = url;
         }
         heroVideo.load();
         heroVideo.play().catch(e => console.log('Video autoplay prevented:', e));
@@ -742,6 +743,15 @@ function applyHomepageVideo(url) {
 }
 
 async function loadMainBannerVideo() {
+    const heroVideoContainer = document.getElementById('heroVideoContainer');
+    if (!heroVideoContainer) return;
+
+    // Never fetch heavy 17MB background video on mobile screens
+    if (window.innerWidth <= 768) {
+        heroVideoContainer.style.display = 'none';
+        return;
+    }
+
     // Prefer the URL saved by the admin.
     if (siteData && siteData.homepage_video_url) {
         applyHomepageVideo(siteData.homepage_video_url);
@@ -756,7 +766,6 @@ async function loadMainBannerVideo() {
     } catch (e) {
         // Default video not available
     }
-    console.log('No banner video uploaded yet');
 }
 
 // ==================== API HELPERS ====================
@@ -1716,21 +1725,27 @@ function init() {
     // Load cart count
     updateCartCount();
 
-    // Load main banner video (if uploaded)
-    loadMainBannerVideo();
+    // Load main banner video only if container exists on page
+    if (document.getElementById('heroVideoContainer')) {
+        loadMainBannerVideo();
+    }
 
-    // Load factory & company media
-    loadGeneralMedia();
+    // Load factory & company media only if container exists on page
+    if (document.getElementById('generalMediaPlayer')) {
+        loadGeneralMedia();
+    }
 
-    // Load saved settings (video, discount, QR) - ensures persistence after refresh
+    // Load saved settings (video, discount, QR)
     loadSiteSettings();
 
-    // Product search / filters + wishlist hearts
-    setupProductFilters();
-    loadWishlistIds();
-
-    // Load data
-    Promise.all([fetchSiteData(), fetchProducts()]);
+    // Load products only if products grid exists (skips on checkout/cart/track for fast loading)
+    if (document.getElementById('productsGrid')) {
+        setupProductFilters();
+        loadWishlistIds();
+        Promise.all([fetchSiteData(), fetchProducts()]);
+    } else {
+        fetchSiteData();
+    }
 
     // My Orders button click handler
     const myOrdersBtn = document.getElementById('myOrdersBtn');

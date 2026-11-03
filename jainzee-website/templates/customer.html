@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Track Your Order - Jainzee™ Food Processing Industries</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}?v=9.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -129,6 +130,25 @@
             white-space: nowrap;
         }
         .btn-track:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        
+        @media (max-width: 600px) {
+            .track-container {
+                padding: 0 12px !important;
+                margin: 20px auto !important;
+            }
+            .track-card {
+                padding: 22px 14px !important;
+                border-radius: 16px !important;
+            }
+            .search-box {
+                flex-direction: column !important;
+                gap: 10px !important;
+            }
+            .btn-track {
+                width: 100% !important;
+                justify-content: center !important;
+            }
+        }
         
         /* Order Card Styling */
         .order-result-card {
