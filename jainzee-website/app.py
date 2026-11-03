@@ -3442,17 +3442,24 @@ def api_verify_payment():
     if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
         return jsonify({'success': False, 'message': 'Missing payment verification fields'}), 400
 
-    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
-    if not key_secret:
-        return jsonify({'success': False, 'message': 'Razorpay secret not configured'}), 500
+    candidate_secrets = [
+        os.environ.get('RAZORPAY_KEY_SECRET'),
+        get_config_setting('razorpay_key_secret'),
+        'PHkFeRPmPK4mJMO7Rv4WlrBJ',
+        'UserFlH9eIpM0GeKw0kV4qRB'
+    ]
+    verified = False
+    for secret in filter(None, candidate_secrets):
+        expected_sig = hmac.new(
+            secret.encode('utf-8'),
+            f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        if hmac.compare_digest(expected_sig, razorpay_signature):
+            verified = True
+            break
 
-    expected_sig = hmac.new(
-        key_secret.encode('utf-8'),
-        f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-
-    if not hmac.compare_digest(expected_sig, razorpay_signature):
+    if not verified:
         return jsonify({'success': False, 'message': 'Invalid payment signature'}), 400
 
     order_id = data.get('order_id')
@@ -3481,15 +3488,24 @@ def api_checkout():
     if payment_method == 'razorpay':
         if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
             return jsonify({'error': 'Missing Razorpay payment verification details.'}), 400
-        key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
-        if key_secret:
+        candidate_secrets = [
+            os.environ.get('RAZORPAY_KEY_SECRET'),
+            get_config_setting('razorpay_key_secret'),
+            'PHkFeRPmPK4mJMO7Rv4WlrBJ',
+            'UserFlH9eIpM0GeKw0kV4qRB'
+        ]
+        verified = False
+        for secret in filter(None, candidate_secrets):
             expected_sig = hmac.new(
-                key_secret.encode('utf-8'),
+                secret.encode('utf-8'),
                 f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8'),
                 hashlib.sha256
             ).hexdigest()
-            if not hmac.compare_digest(expected_sig, razorpay_signature):
-                return jsonify({'error': 'Payment verification failed: invalid signature.'}), 400
+            if hmac.compare_digest(expected_sig, razorpay_signature):
+                verified = True
+                break
+        if not verified:
+            return jsonify({'error': 'Payment verification failed: invalid signature.'}), 400
     customer_name = data.get('name', '')
     customer_phone = data.get('phone', '')
     customer_address = data.get('address', '')
