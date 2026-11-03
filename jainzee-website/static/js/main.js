@@ -714,8 +714,6 @@ document.addEventListener('keydown', (e) => {
 // given URL. Add a cache-busting param so a freshly uploaded video shows at once.
 function applyHomepageVideo(url) {
     if (!url) return;
-    // On mobile devices (<=768px), don't stream heavy background video
-    if (window.innerWidth <= 768) return;
 
     const heroVideoContainer = document.getElementById('heroVideoContainer');
     const heroVideo = document.getElementById('heroVideo');
@@ -726,9 +724,12 @@ function applyHomepageVideo(url) {
         } else {
             heroVideo.src = url;
         }
+        heroVideo.muted = true;
+        heroVideo.setAttribute('playsinline', '');
+        heroVideo.setAttribute('webkit-playsinline', '');
         heroVideo.load();
         heroVideo.play().catch(e => console.log('Video autoplay prevented:', e));
-        heroVideoContainer.style.display = '';
+        heroVideoContainer.style.display = 'block';
     }
 
     // Video banner card (older template variant)
@@ -737,7 +738,11 @@ function applyHomepageVideo(url) {
     const videoCard = document.getElementById('videoBannerCard');
     if (videoSource) {
         videoSource.src = url;
-        if (videoEl) videoEl.load();
+        if (videoEl) {
+            videoEl.muted = true;
+            videoEl.setAttribute('playsinline', '');
+            videoEl.load();
+        }
         if (videoCard) videoCard.style.display = '';
     }
 }
@@ -745,12 +750,6 @@ function applyHomepageVideo(url) {
 async function loadMainBannerVideo() {
     const heroVideoContainer = document.getElementById('heroVideoContainer');
     if (!heroVideoContainer) return;
-
-    // Never fetch heavy 17MB background video on mobile screens
-    if (window.innerWidth <= 768) {
-        heroVideoContainer.style.display = 'none';
-        return;
-    }
 
     // Prefer the URL saved by the admin.
     if (siteData && siteData.homepage_video_url) {

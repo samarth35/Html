@@ -13,7 +13,7 @@
     <meta property="og:url" content="https://jainzeefoods.vercel.app/" />
     <link rel="canonical" href="https://jainzeefoods.vercel.app/" />
     <title>Jainzee™ Food Processing Industries - Dry Fruits</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=9.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=10.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Mukta:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -133,11 +133,12 @@
     <section class="hero" id="home">
         <div class="hero-overlay"></div>
         
-        <!-- Hero Video Background (if available) -->
-        <div class="hero-video-container" id="heroVideoContainer" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; z-index: 0;">
-            <video id="heroVideo" autoplay loop muted playsinline preload="metadata" style="width: 100%; height: 100%; object-fit: cover; opacity: 1; z-index: 1;">
+        <!-- Hero Video Background -->
+        <div class="hero-video-container" id="heroVideoContainer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; z-index: 0; width: 100%; height: 100%; display: block;">
+            <video id="heroVideo" autoplay loop muted playsinline preload="auto" style="width: 100%; height: 100%; object-fit: cover; opacity: 1; z-index: 1;">
+                <source id="heroVideoSource" src="/static/uploads/main_banner_video.mp4" type="video/mp4">
             </video>
-            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(18,18,18,0.6); z-index: 2; pointer-events: none;"></div>
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(18,18,18,0.65); z-index: 2; pointer-events: none;"></div>
         </div>
         
         <div class="hero-content" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin: 0 auto; width: 100%; max-width: 900px;">
