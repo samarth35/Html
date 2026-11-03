@@ -907,6 +907,10 @@ const name = document.getElementById('checkoutName').value.trim();
                 }
 
                 // If Razorpay Online Payment is selected
+                const totalEl = document.getElementById('checkoutTotal');
+                const totalText = totalEl ? totalEl.textContent.replace(/[^\d.]/g, '') : '0';
+                const totalNum = parseFloat(totalText) || 0;
+
                 const rzpRes = await authFetch('/api/razorpay/create-order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -914,6 +918,7 @@ const name = document.getElementById('checkoutName').value.trim();
                         name: name,
                         phone: phone,
                         address: address,
+                        amount: totalNum > 0 ? Math.round(totalNum * 100) : 0,
                         coupon_code: appliedCoupon ? appliedCoupon.code : ''
                     })
                 });

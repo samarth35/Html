@@ -3275,12 +3275,22 @@ def api_cart_count():
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
-    key_id = get_config_setting('razorpay_key_id')
-    key_secret = get_config_setting('razorpay_key_secret')
+    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvNiX34TPC0UOV'
+    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'UserFlH9eIpM0GeKw0kV4qRB' or os.environ.get('RAZORPAY_KEY_SECRET') or 'UserFlH9eIpM0GeKw0kV4qRB'
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
-    if not cart:
+    direct_amount = data.get('amount')
+    amount_in_paise = 0
+
+    if direct_amount and float(direct_amount) > 0:
+        val = float(direct_amount)
+        # If already in paise (e.g. 10000 or greater), or explicitly in paise
+        if val >= 10000:
+            amount_in_paise = int(round(val))
+        else:
+            amount_in_paise = int(round(val * 100))
+    elif not cart and not data.get('items'):
         return jsonify({'error': 'Cart is empty'}), 400
 
     conn = get_db()
@@ -3341,8 +3351,9 @@ def api_razorpay_create_order():
     if shipping_charge > 0 and free_shipping_min > 0 and amount_before_shipping >= free_shipping_min:
         shipping_charge = 0.0
 
-    final_total = max(0.0, subtotal - global_discount_amount - coupon_discount + shipping_charge)
-    amount_in_paise = int(round(final_total * 100))
+    if not amount_in_paise:
+        final_total = max(0.0, subtotal - global_discount_amount - coupon_discount + shipping_charge)
+        amount_in_paise = int(round(final_total * 100))
 
     if amount_in_paise <= 0:
         return jsonify({'error': 'Total order amount must be greater than zero.'}), 400

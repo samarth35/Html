@@ -7,3 +7,4 @@ if site_dir not in sys.path:
     sys.path.insert(0, site_dir)
 
 from app import app
+

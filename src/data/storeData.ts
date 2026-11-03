@@ -18,7 +18,7 @@ export const STORE_INFO = {
   perKmRate: 5,
   baseDeliveryCharge: 15,
   minDiwaliBoxPriceAfterDiscount: 1300,
-  upiId: 'jainzeefoods@icici',
+  upiId: '',
   logoUrl: '/images/brand-logo-circle.png',
   fssaiLogoUrl: '/static/images/fssai-logo.png',
   bannerVideoUrl: '/static/uploads/main_banner_video.mp4',

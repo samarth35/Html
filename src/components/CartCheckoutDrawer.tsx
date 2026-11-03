@@ -63,7 +63,8 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerCity, setCustomerCity] = useState('Indore, MP');
   const [customerPincode, setCustomerPincode] = useState('452001');
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'UPI' | 'Razorpay'>('COD');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Razorpay'>('Razorpay');
+  const [paymentError, setPaymentError] = useState('');
 
   if (!isOpen) return null;
 
@@ -223,14 +224,23 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
       onClose();
     };
 
-    if (paymentMethod === 'Razorpay' && typeof window !== 'undefined' && (window as any).Razorpay) {
-      try {
-        const options = {
+    if (paymentMethod === 'Razorpay') {
+      setPaymentError('');
+
+      const launchRazorpay = (orderId?: string) => {
+        if (typeof window === 'undefined') return;
+        const RazorpayClass = (window as any).Razorpay;
+        if (!RazorpayClass) {
+          alert(lang === 'hi' ? 'पेमेंट गेटवे लोड हो रहा है, कृपया 2 सेकंड बाद पुनः प्रयास करें।' : 'Payment gateway is loading, please try again.');
+          return;
+        }
+
+        const options: any = {
           key: settings.razorpayKeyId || 'rzp_test_TvNiX34TPC0UOV',
           amount: Math.round(total * 100),
           currency: 'INR',
           name: 'Jainzee™ Food Processing Industries',
-          description: 'Pure Siyaganj Dry Fruits Order',
+          description: 'Dry Fruits Order Payment',
           image: '/images/brand-logo-circle.png',
           prefill: {
             name: customerName.trim(),
@@ -240,19 +250,69 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
           theme: {
             color: '#b8860b'
           },
-          handler: function (response: any) {
+          handler: async function (response: any) {
+            if (response.razorpay_order_id && response.razorpay_signature) {
+              try {
+                await fetch('/api/verify-payment', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_signature: response.razorpay_signature
+                  })
+                });
+              } catch (_) {}
+            }
             placeOrderNow(response.razorpay_payment_id);
           },
           modal: {
-            ondismiss: function () {}
+            ondismiss: function () {
+              setPaymentError(
+                lang === 'hi'
+                  ? 'पेमेंट पूरा नहीं हुआ। आप दोबारा प्रयास कर सकते हैं या Cash on Delivery चुन सकते हैं।'
+                  : 'Payment was dismissed. You can retry or choose Cash on Delivery (COD).'
+              );
+            }
           }
         };
-        const rzp = new (window as any).Razorpay(options);
+
+        if (orderId) {
+          options.order_id = orderId;
+        }
+
+        const rzp = new RazorpayClass(options);
+        rzp.on('payment.failed', function (resp: any) {
+          setPaymentError('Payment Failed: ' + (resp.error?.description || 'Transaction was declined.'));
+        });
         rzp.open();
-        return;
-      } catch (err) {
-        console.error('Razorpay popup error:', err);
-      }
+      };
+
+      // Try creating backend order first
+      fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: Math.round(total * 100),
+          currency: 'INR',
+          name: customerName.trim(),
+          phone: customerPhone.trim(),
+          address: customerAddress.trim()
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.order_id) {
+          launchRazorpay(data.order_id);
+        } else {
+          launchRazorpay();
+        }
+      })
+      .catch(() => {
+        launchRazorpay();
+      });
+
+      return;
     }
 
     placeOrderNow();
@@ -672,26 +732,28 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                 </p>
 
                 <div className="grid grid-cols-1 gap-2.5">
+                  {paymentError && (
+                    <div className="p-3 text-xs bg-amber-50 border border-amber-300 text-amber-900 rounded-lg">
+                      {paymentError}
+                    </div>
+                  )}
                   {(
                     [
                       {
+                        id: 'Razorpay',
+                        title_en: 'Online Payment (UPI, Google Pay, PhonePe, Paytm, Cards)',
+                        title_hi: 'ऑनलाइन भुगतान (UPI, Google Pay, PhonePe, Paytm, कार्ड्स)',
+                        desc_en:
+                          'Pay securely via UPI Apps, QR scan, all Credit/Debit cards & Netbanking with instant invoice.',
+                        badge: 'Recommended • 100% Safe',
+                      },
+                      {
                         id: 'COD',
                         title_en: 'Cash on Delivery (COD)',
-                        title_hi: 'कैश ऑन डिलीवरी (पार्सल मिलने पर भुगतान)',
+                        title_hi: 'कैश ऑन डिलीवरी (COD)',
                         desc_en:
-                          'Pay in cash or UPI at your doorstep upon receiving your sealed pack.',
-                      },
-                      {
-                        id: 'UPI',
-                        title_en: 'Instant UPI (GPay / PhonePe / Paytm)',
-                        title_hi: 'तुरंत UPI भुगतान (GPay / PhonePe / Paytm)',
-                        desc_en: `Direct transfer to ${settings.upiId || STORE_INFO.upiId} · Zero gateway fee.`,
-                      },
-                      {
-                        id: 'Razorpay',
-                        title_en: 'Cards & NetBanking (Razorpay Verified)',
-                        title_hi: 'कार्ड और नेटबैंकिंग (Razorpay सुरक्षित)',
-                        desc_en: 'All credit/debit cards & EMI options supported.',
+                          'Pay in cash or UPI QR code to the delivery partner when package arrives.',
+                        badge: 'Pay at Doorstep',
                       },
                     ] as const
                   ).map((opt) => (
