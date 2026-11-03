@@ -6,7 +6,7 @@
     <title data-i18n="cart_title">Your Cart - Jainzee</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=10.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=11.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -18,10 +18,10 @@
     <nav class="navbar">
         <div class="nav-container">
             <!-- DESKTOP: Brand Logo & Title (left) -->
-            <div class="nav-logo">
+            <a href="/" class="nav-logo" title="Jainzee™ Foods Home" style="text-decoration:none; display:flex; align-items:center; gap:12px;">
                 <img id="navLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="nav-logo-img">
                 <span id="navShopName" class="nav-shop-name">Jainzee<sup>&trade;</sup> Food Processing Industries</span>
-            </div>
+            </a>
             
             <!-- DESKTOP: Right-side buttons -->
             <div class="nav-right">
@@ -64,30 +64,25 @@
                 </button>
             </div>
             <div class="nav-center">
-                <div class="mobile-brand">
+                <a href="/" class="mobile-brand" title="Jainzee™ Foods Home" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
                     <img id="mobileNavLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="nav-logo-img">
                     <span id="mobileNavShopName" class="nav-shop-name">Jainzee<sup>&trade;</sup> Food Processing Industries</span>
-                </div>
+                </a>
             </div>
             <div class="nav-right">
-                <a href="/cart" class="mobile-cart-btn" id="mobileCartLink" title="Cart">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="mobile-btn-text" data-i18n="cart_title">Cart</span>
-                    <span class="cart-count-badge" id="mobileCartBadge" style="display: none;">0</span>
-                </a>
-                <a href="#" class="mobile-orders-btn" id="mobileOrdersBtn" title="My Orders">
-                    <i class="fas fa-box"></i>
-                    <span class="mobile-btn-text" data-i18n="orders_title">Orders</span>
+                <a href="/" class="mobile-cart-btn" title="Back to Shop" style="text-decoration:none;">
+                    <i class="fas fa-store"></i>
+                    <span class="mobile-btn-text">Shop</span>
                 </a>
             </div>
         </div>
         <!-- Left sidebar mobile menu -->
         <div class="mobile-menu" id="mobileMenu">
             <div class="mobile-menu-header">
-                <div class="mobile-menu-brand">
+                <a href="/" class="mobile-menu-brand" title="Jainzee™ Foods Home" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
                     <img id="mobileMenuLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="nav-logo-img">
                     <span class="mobile-menu-title" id="mobileMenuTitle">Jainzee<sup>&trade;</sup> Food Processing Industries</span>
-                </div>
+                </a>
                 <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
                     <i class="fas fa-times"></i>
                 </button>
@@ -121,9 +116,12 @@
     <!-- ===== CART SECTION ===== -->
     <section class="cart-section">
         <div class="container">
-            <div class="section-header">
-                <h2 data-i18n="cart_title">Your Shopping Cart</h2>
-                <p data-i18n="cart_subtitle">Review your items and proceed to checkout</p>
+            <div class="section-header" style="text-align: center; margin-bottom: 24px; padding-top: 5px;">
+                <h2 data-i18n="cart_title" style="color: #111827 !important; font-size: 1.85rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; gap: 10px;">
+                    <i class="fas fa-shopping-cart" style="color: #d4af37;"></i>
+                    <span>Your Shopping Cart</span>
+                </h2>
+                <p data-i18n="cart_subtitle" style="color: #4b5563 !important; font-size: 0.95rem; margin-top: 6px;">Review your items and proceed to checkout</p>
             </div>
 
             <div id="cartContent">
@@ -431,9 +429,22 @@
                         ${itemDiscountBadge}
                     </div>
                         </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="number" min="1" max="${item.stock}" value="${item.quantity}" onchange="updateCartQty(${index}, this.value)" style="width: 70px; padding: 10px; text-align: center; border: 2px solid #e8e0d5; border-radius: 8px; background: white; color: #121212; font-weight: 600; font-size: 1rem;">
-                        <button onclick="removeFromCart(${index})" style="background: #dc3545; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem;"><i class="fas fa-trash"></i> Remove</button>
+                    <div class="cart-item-actions" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+                        <div class="qty-stepper-control" style="display: inline-flex; align-items: center; background: #ffffff; border: 2px solid #d4af37; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+                            <button type="button" class="qty-step-btn qty-minus" onclick="changeCartQty(${index}, -1)" title="Decrease Quantity" aria-label="Decrease quantity" style="width: 38px; height: 38px; border: none; background: #fffdf5; color: #111827; font-size: 0.95rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s; border-right: 1px solid #ebd89a;">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <span class="qty-step-value" style="min-width: 42px; height: 38px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; font-weight: 700; color: #111827; background: #ffffff; user-select: none;">
+                                ${item.quantity}
+                            </span>
+                            <button type="button" class="qty-step-btn qty-plus" onclick="changeCartQty(${index}, 1)" title="Increase Quantity" aria-label="Increase quantity" style="width: 38px; height: 38px; border: none; background: #fffdf5; color: #111827; font-size: 0.95rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s; border-left: 1px solid #ebd89a;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <button type="button" class="cart-item-remove-btn" onclick="removeFromCart(${index})" title="Remove Item" style="display: inline-flex; align-items: center; gap: 6px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; padding: 8px 14px; border-radius: 9px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s;">
+                            <i class="fas fa-trash-alt"></i>
+                            <span>${currentLangCart === 'hi' ? 'हटाएं' : 'Remove'}</span>
+                        </button>
                     </div>
                     </div>
                 `;
@@ -634,6 +645,34 @@
         document.addEventListener('click', (e) => {
             if (e.target && e.target.id === 'couponModal') closeCouponModal();
         });
+
+        async function changeCartQty(index, delta) {
+            if (!cartItems || !cartItems[index]) return;
+            const item = cartItems[index];
+            const currentQty = parseInt(item.quantity) || 1;
+            const newQty = currentQty + delta;
+            const maxStock = parseInt(item.stock) || 999;
+            
+            if (newQty <= 0) {
+                const confirmMsg = currentLangCart === 'hi' 
+                    ? 'क्या आप इस आइटम को कार्ट से हटाना चाहते हैं?' 
+                    : 'Do you want to remove this item from your cart?';
+                if (confirm(confirmMsg)) {
+                    removeFromCart(index);
+                }
+                return;
+            }
+            
+            if (delta > 0 && maxStock > 0 && newQty > maxStock) {
+                const warnMsg = currentLangCart === 'hi'
+                    ? `केवल ${maxStock} यूनिट उपलब्ध हैं!`
+                    : `Only ${maxStock} unit(s) available in stock!`;
+                alert(warnMsg);
+                return;
+            }
+            
+            await updateCartQty(index, newQty);
+        }
 
         async function updateCartQty(index, qty) {
             const quantity = parseInt(qty) || 1;

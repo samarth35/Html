@@ -1858,3 +1858,15 @@ function buildModalTracker(status) {
         `;
     }).join('');
 }
+
+// Change product modal quantity with [-] and [+]
+function changeModalQty(delta) {
+    const input = document.getElementById('modalQuantity');
+    if (!input) return;
+    const current = parseInt(input.value) || 1;
+    const next = Math.max(1, current + delta);
+    input.value = next;
+    if (typeof updateModalPrice === 'function') {
+        updateModalPrice();
+    }
+}

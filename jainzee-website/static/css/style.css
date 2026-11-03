@@ -3398,7 +3398,7 @@ button[onclick*="addToCart"] *,
 
 @media (max-width: 768px) {
     .cart-section {
-        padding: 95px 14px 50px !important;
+        padding: 130px 16px 50px !important;
     }
 
     .cart-item {
@@ -3435,7 +3435,7 @@ button[onclick*="addToCart"] *,
 @media (max-width: 540px) {
     .checkout-section,
     .cart-section {
-        padding: 85px 12px 40px !important;
+        padding: 125px 14px 40px !important;
     }
 
     .checkout-form,
@@ -3614,5 +3614,97 @@ button[onclick*="addToCart"] *,
     .btn-track {
         width: 100% !important;
         justify-content: center !important;
+    }
+}
+
+/* ===== MOBILE NAVBAR & CART ENHANCEMENTS v11.0 ===== */
+a.nav-logo,
+a.mobile-brand,
+a.mobile-menu-brand {
+    text-decoration: none !important;
+    cursor: pointer !important;
+}
+
+a.nav-logo:hover,
+a.nav-logo:focus,
+a.mobile-brand:hover,
+a.mobile-brand:focus,
+a.mobile-menu-brand:hover,
+a.mobile-menu-brand:focus {
+    text-decoration: none !important;
+}
+
+a.nav-logo .nav-shop-name,
+a.mobile-brand .nav-shop-name,
+a.mobile-menu-brand .mobile-menu-title {
+    color: #ffffff !important;
+}
+
+.cart-section .section-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.cart-section .section-header h2 {
+    color: #111827 !important;
+    font-size: 1.85rem !important;
+    font-weight: 800 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+}
+
+.cart-section .section-header p {
+    color: #4b5563 !important;
+    font-size: 0.95rem !important;
+    margin-top: 6px !important;
+}
+
+.qty-step-btn {
+    transition: background 0.15s ease, transform 0.1s ease !important;
+}
+
+.qty-step-btn:hover {
+    background: #faedd1 !important;
+}
+
+.qty-step-btn:active {
+    transform: scale(0.92) !important;
+    background: #f5dfb0 !important;
+}
+
+.cart-item-remove-btn:hover {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+}
+
+.cart-item-remove-btn:active {
+    transform: scale(0.95) !important;
+}
+
+@media (max-width: 768px) {
+    .cart-section {
+        padding-top: 130px !important;
+    }
+}
+
+@media (max-width: 540px) {
+    .cart-section {
+        padding-top: 125px !important;
+    }
+    .cart-section .section-header h2 {
+        font-size: 1.55rem !important;
+    }
+    .mobile-brand .nav-shop-name {
+        font-size: 0.95rem !important;
+        max-width: 70% !important;
+    }
+}
+
+@media (max-width: 380px) {
+    .mobile-brand .nav-shop-name {
+        font-size: 0.84rem !important;
+        max-width: 65% !important;
     }
 }

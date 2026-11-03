@@ -26,10 +26,10 @@
     <nav class="navbar">
         <div class="nav-container">
             <!-- DESKTOP: Brand Logo & Title (left) -->
-            <div class="nav-logo">
+            <a href="/" class="nav-logo" title="Jainzee™ Foods Home" style="text-decoration:none; display:flex; align-items:center; gap:12px;">
                 <img id="navLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="nav-logo-img">
                 <span id="navShopName" class="nav-shop-name">Jainzee<sup>&trade;</sup> Food Processing Industries</span>
-            </div>  
+            </a>  
             
             <!-- DESKTOP: Right-side buttons -->
             <div class="nav-right">
@@ -72,16 +72,13 @@
                 </button>
             </div>
             <div class="nav-center">
-                <div class="mobile-brand">
+                <a href="/" class="mobile-brand" title="Jainzee™ Foods Home" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
                     <img id="mobileNavLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="nav-logo-img">
                     <span id="mobileNavShopName" class="nav-shop-name">Jainzee<sup>&trade;</sup> Food Processing Industries</span>
-                </div>
+                </a>
             </div>
             <div class="nav-right" style="display: flex; align-items: center; gap: 8px;">
-                <a href="/admin/login" class="mobile-admin-slot" title="Admin Login" style="background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.35); color: #ffd700; padding: 5px 9px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                    <i class="fas fa-lock"></i> Admin
-                </a>
-                <a href="/cart" class="mobile-cart-btn" id="mobileCartLink" title="Cart">
+                <a href="/cart" class="mobile-cart-btn" id="mobileCartLink" title="Cart" style="text-decoration:none;">
                     <i class="fas fa-shopping-cart"></i>
                     <span class="mobile-btn-text" data-i18n="cart_title">Cart</span>
                     <span class="cart-count-badge" id="mobileCartBadge" style="display: none;">0</span>
@@ -95,10 +92,10 @@
         <!-- Left sidebar mobile menu -->
         <div class="mobile-menu" id="mobileMenu">
             <div class="mobile-menu-header">
-                <div class="mobile-menu-brand">
+                <a href="/" class="mobile-menu-brand" title="Jainzee™ Foods Home" style="text-decoration:none; display:flex; align-items:center; gap:8px;">
                     <img id="mobileMenuLogo" src="{{ url_for('static', filename='images/logo.svg') }}" alt="Jainzee Logo" class="nav-logo-img">
                     <span class="mobile-menu-title" id="mobileMenuTitle">Jainzee<sup>&trade;</sup> Food Processing Industries</span>
-                </div>
+                </a>
                 <button class="mobile-menu-close" id="mobileMenuClose" aria-label="Close menu">
                     <i class="fas fa-times"></i>
                 </button>
@@ -487,7 +484,15 @@
                 </div>
                 <div style="margin-bottom: 20px;">
                     <label style="display: block; color: var(--text); font-weight: 600; margin-bottom: 8px;" data-i18n="quantity">Quantity</label>
-                    <input type="number" id="modalQuantity" min="1" max="999" value="1" style="width: 100%; padding: 14px; border: 2px solid #e8e0d5; border-radius: 12px; background: white; color: var(--text); font-size: 1rem; text-align: center;">
+                    <div style="display: flex; align-items: center; border: 2px solid #e8e0d5; border-radius: 12px; overflow: hidden; background: white;">
+                        <button type="button" onclick="changeModalQty(-1)" style="width: 48px; height: 46px; border: none; background: #fffdf5; font-size: 1.1rem; font-weight: 700; color: #1a1a1a; cursor: pointer; border-right: 1px solid #ecd690;">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <input type="number" id="modalQuantity" min="1" max="999" value="1" style="flex: 1; height: 46px; border: none; background: white; color: var(--text); font-size: 1.1rem; text-align: center; font-weight: 700;">
+                        <button type="button" onclick="changeModalQty(1)" style="width: 48px; height: 46px; border: none; background: #fffdf5; font-size: 1.1rem; font-weight: 700; color: #1a1a1a; cursor: pointer; border-left: 1px solid #ecd690;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer" style="display: flex; gap: 15px; border-top: 1px solid rgba(255,215,0,0.15); padding-top: 20px;">
