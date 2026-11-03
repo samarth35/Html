@@ -748,8 +748,12 @@ def init_db():
     cur.execute("UPDATE settings SET value='Jainzee™ Food Processing Industries' WHERE key='shop_name_en' AND value NOT LIKE '%™%'")
     cur.execute("UPDATE settings SET value='जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' WHERE key='shop_name_hi' AND value NOT LIKE '%™%'")
 
-    cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_id' AND (value='' OR value IS NULL)", (os.environ.get('RAZORPAY_KEY_ID',''),))
-    cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_secret' AND (value='' OR value IS NULL)", (os.environ.get('RAZORPAY_KEY_SECRET',''),))
+    cur.execute("UPDATE settings SET value='rzp_test_TvlkUOYtdO9Ngn' WHERE key='razorpay_key_id' AND (value='rzp_test_TvNiX34TPC0UOV' OR value='' OR value IS NULL)")
+    cur.execute("UPDATE settings SET value='PHkFeRPmPK4mJMO7Rv4WlrBJ' WHERE key='razorpay_key_secret' AND (value='UserFlH9eIpM0GeKw0kV4qRB' OR value='' OR value IS NULL)")
+    if os.environ.get('RAZORPAY_KEY_ID'):
+        cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_id'", (os.environ['RAZORPAY_KEY_ID'],))
+    if os.environ.get('RAZORPAY_KEY_SECRET'):
+        cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_secret'", (os.environ['RAZORPAY_KEY_SECRET'],))
 
 
     cur.executemany(
