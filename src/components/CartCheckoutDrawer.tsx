@@ -226,8 +226,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
 
     if (paymentMethod === 'Razorpay') {
       setPaymentError('');
-
-      const launchRazorpay = (orderId?: string) => {
+      const launchRazorpay = (orderId: string, serverKeyId?: string) => {
         if (typeof window === 'undefined') return;
         const RazorpayClass = (window as any).Razorpay;
         if (!RazorpayClass) {
@@ -236,12 +235,13 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
         }
 
         const options: any = {
-          key: settings.razorpayKeyId || 'rzp_test_TvNiX34TPC0UOV',
+          key: serverKeyId || settings.razorpayKeyId || 'rzp_test_TvlkUOYtdO9Ngn',
           amount: Math.round(total * 100),
           currency: 'INR',
           name: 'Jainzee™ Food Processing Industries',
           description: 'Dry Fruits Order Payment',
           image: '/images/brand-logo-circle.png',
+          order_id: orderId,
           prefill: {
             name: customerName.trim(),
             contact: customerPhone.trim(),
@@ -253,7 +253,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
           handler: async function (response: any) {
             if (response.razorpay_order_id && response.razorpay_signature) {
               try {
-                await fetch('/api/verify-payment', {
+                const vRes = await fetch('/api/verify-payment', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -262,7 +262,15 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                     razorpay_signature: response.razorpay_signature
                   })
                 });
-              } catch (_) {}
+                const vData = await vRes.json();
+                if (!vRes.ok || !vData.success) {
+                  setPaymentError(vData.message || 'Payment signature verification failed.');
+                  return;
+                }
+              } catch (err: any) {
+                setPaymentError(err.message || 'Payment verification failed.');
+                return;
+              }
             }
             placeOrderNow(response.razorpay_payment_id);
           },
@@ -277,10 +285,6 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
           }
         };
 
-        if (orderId) {
-          options.order_id = orderId;
-        }
-
         const rzp = new RazorpayClass(options);
         rzp.on('payment.failed', function (resp: any) {
           setPaymentError('Payment Failed: ' + (resp.error?.description || 'Transaction was declined.'));
@@ -288,28 +292,29 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
         rzp.open();
       };
 
-      // Try creating backend order first
-      fetch('/api/razorpay/create-order', {
+      // Call backend create-order endpoint first
+      fetch('/api/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: Math.round(total * 100),
           currency: 'INR',
-          name: customerName.trim(),
-          phone: customerPhone.trim(),
-          address: customerAddress.trim()
+          receipt: 'rcpt_' + Date.now()
         })
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.order_id) {
-          launchRazorpay(data.order_id);
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          throw new Error(data.error || 'Failed to initialize payment order');
+        }
+        if (data.order_id) {
+          launchRazorpay(data.order_id, data.key_id);
         } else {
-          launchRazorpay();
+          throw new Error('Order creation did not return order_id');
         }
       })
-      .catch(() => {
-        launchRazorpay();
+      .catch((err) => {
+        setPaymentError(err.message || 'Payment service error. You can choose Cash on Delivery or retry.');
       });
 
       return;

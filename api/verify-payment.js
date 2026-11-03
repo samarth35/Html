@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   }
 
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body || {};
-  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'UserFlH9eIpM0GeKw0kV4qRB';
+  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'PHkFeRPmPK4mJMO7Rv4WlrBJ';
 
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     return res.status(400).json({ success: false, message: 'Missing payment verification fields' });

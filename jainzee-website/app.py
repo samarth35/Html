@@ -3275,21 +3275,22 @@ def api_cart_count():
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
-    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvNiX34TPC0UOV'
-    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'UserFlH9eIpM0GeKw0kV4qRB' or os.environ.get('RAZORPAY_KEY_SECRET') or 'UserFlH9eIpM0GeKw0kV4qRB'
+    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvlkUOYtdO9Ngn'
+    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ' or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
     direct_amount = data.get('amount')
     amount_in_paise = 0
 
-    if direct_amount and float(direct_amount) > 0:
-        val = float(direct_amount)
-        # If already in paise (e.g. 10000 or greater), or explicitly in paise
-        if val >= 10000:
+    if direct_amount is not None:
+        try:
+            val = float(direct_amount)
+            if val < 100:
+                return jsonify({'error': 'Amount must be at least 100 paise (₹1)'}), 400
             amount_in_paise = int(round(val))
-        else:
-            amount_in_paise = int(round(val * 100))
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid amount'}), 400
     elif not cart and not data.get('items'):
         return jsonify({'error': 'Cart is empty'}), 400
 
@@ -3441,7 +3442,7 @@ def api_verify_payment():
     if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
         return jsonify({'success': False, 'message': 'Missing payment verification fields'}), 400
 
-    key_secret = get_config_setting('razorpay_key_secret')
+    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
     if not key_secret:
         return jsonify({'success': False, 'message': 'Razorpay secret not configured'}), 500
 
@@ -3480,7 +3481,7 @@ def api_checkout():
     if payment_method == 'razorpay':
         if not razorpay_order_id or not razorpay_payment_id or not razorpay_signature:
             return jsonify({'error': 'Missing Razorpay payment verification details.'}), 400
-        key_secret = get_config_setting('razorpay_key_secret')
+        key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
         if key_secret:
             expected_sig = hmac.new(
                 key_secret.encode('utf-8'),
