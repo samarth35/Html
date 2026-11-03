@@ -4,8 +4,8 @@ export default async function handler(req, res) {
   }
 
   const { amount, currency = 'INR', receipt } = req.body || {};
-  const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_TvlkUOYtdO9Ngn';
-  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'PHkFeRPmPK4mJMO7Rv4WlrBJ';
+  const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_live_TvorDloFWDaxeT';
+  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'LYwVCkTtjBheXJMaq7W9EDms';
 
   if (!amount || amount < 100) {
     return res.status(400).json({ error: 'Amount must be at least 100 paise (₹1)' });
@@ -28,8 +28,13 @@ export default async function handler(req, res) {
 
     const data = await rzpRes.json();
     if (!rzpRes.ok) {
+      if (rzpRes.status === 401) {
+        return res.status(401).json({
+          error: 'Razorpay Authentication failed. Please check API keys or use Cash on Delivery.'
+        });
+      }
       const errMsg = data.error ? data.error.description : 'Failed to create Razorpay order';
-      return res.status(rzpRes.status === 401 ? 401 : 500).json({ error: errMsg });
+      return res.status(500).json({ error: errMsg });
     }
 
     return res.status(200).json({

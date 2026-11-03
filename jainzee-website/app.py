@@ -367,9 +367,9 @@ def get_config_setting(key, default=''):
         pass
     # Guard against legacy revoked test credentials
     if key == 'razorpay_key_id' and (not val or val == 'rzp_test_TvNiX34TPC0UOV'):
-        val = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvlkUOYtdO9Ngn'
-    elif key == 'razorpay_key_secret' and (not val or val == 'UserFlH9eIpM0GeKw0kV4qRB'):
-        val = os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
+        val = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    elif key == 'razorpay_key_secret' and (not val or val == 'LYwVCkTtjBheXJMaq7W9EDms', 'PHkFeRPmPK4mJMO7Rv4WlrBJ', 'UserFlH9eIpM0GeKw0kV4qRB'):
+        val = os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
     if val:
         return val
     env_val = os.environ.get(key.upper()) or os.environ.get(key)
@@ -756,8 +756,9 @@ def init_db():
     cur.execute("UPDATE settings SET value='Jainzee™ Food Processing Industries' WHERE key='shop_name_en' AND value NOT LIKE '%™%'")
     cur.execute("UPDATE settings SET value='जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' WHERE key='shop_name_hi' AND value NOT LIKE '%™%'")
 
-    cur.execute("UPDATE settings SET value='rzp_test_TvlkUOYtdO9Ngn' WHERE key='razorpay_key_id' AND (value='rzp_test_TvNiX34TPC0UOV' OR value='' OR value IS NULL)")
-    cur.execute("UPDATE settings SET value='PHkFeRPmPK4mJMO7Rv4WlrBJ' WHERE key='razorpay_key_secret' AND (value='UserFlH9eIpM0GeKw0kV4qRB' OR value='' OR value IS NULL)")
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_id', 'rzp_live_TvorDloFWDaxeT')")
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_secret', 'LYwVCkTtjBheXJMaq7W9EDms')")
+    conn.commit()
     if os.environ.get('RAZORPAY_KEY_ID'):
         cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_id'", (os.environ['RAZORPAY_KEY_ID'],))
     if os.environ.get('RAZORPAY_KEY_SECRET'):
@@ -1210,8 +1211,8 @@ def api_site():
     for r in rows:
         if r['key'] in PUBLIC_SETTINGS_KEYS:
             data[r['key']] = r['value']
-    if 'razorpay_key_id' in data and data['razorpay_key_id'] in ('rzp_test_TvNiX34TPC0UOV', '', None):
-        data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvlkUOYtdO9Ngn'
+    if 'razorpay_key_id' in data and data['razorpay_key_id'] in ('rzp_test_TvNiX34TPC0UOV', 'rzp_live_TvorDloFWDaxeT', '', None):
+        data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
     return jsonify(data)
 
 @app.route('/admin/api/settings')
@@ -3289,8 +3290,8 @@ def api_cart_count():
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
-    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_test_TvlkUOYtdO9Ngn'
-    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ' or os.environ.get('RAZORPAY_KEY_SECRET') or 'PHkFeRPmPK4mJMO7Rv4WlrBJ'
+    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms' or os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
@@ -3463,8 +3464,8 @@ def api_verify_payment():
     candidate_secrets = [
         os.environ.get('RAZORPAY_KEY_SECRET'),
         get_config_setting('razorpay_key_secret'),
-        'PHkFeRPmPK4mJMO7Rv4WlrBJ',
-        'UserFlH9eIpM0GeKw0kV4qRB'
+        'LYwVCkTtjBheXJMaq7W9EDms',
+        'LYwVCkTtjBheXJMaq7W9EDms', 'PHkFeRPmPK4mJMO7Rv4WlrBJ', 'UserFlH9eIpM0GeKw0kV4qRB'
     ]
     verified = False
     for secret in filter(None, candidate_secrets):
@@ -3509,8 +3510,8 @@ def api_checkout():
         candidate_secrets = [
             os.environ.get('RAZORPAY_KEY_SECRET'),
             get_config_setting('razorpay_key_secret'),
-            'PHkFeRPmPK4mJMO7Rv4WlrBJ',
-            'UserFlH9eIpM0GeKw0kV4qRB'
+            'LYwVCkTtjBheXJMaq7W9EDms',
+            'LYwVCkTtjBheXJMaq7W9EDms', 'PHkFeRPmPK4mJMO7Rv4WlrBJ', 'UserFlH9eIpM0GeKw0kV4qRB'
         ]
         verified = False
         for secret in filter(None, candidate_secrets):

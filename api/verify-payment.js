@@ -13,6 +13,7 @@ export default async function handler(req, res) {
 
   const candidateSecrets = [
     process.env.RAZORPAY_KEY_SECRET,
+    'LYwVCkTtjBheXJMaq7W9EDms',
     'PHkFeRPmPK4mJMO7Rv4WlrBJ',
     'UserFlH9eIpM0GeKw0kV4qRB'
   ].filter(Boolean);
