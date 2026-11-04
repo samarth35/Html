@@ -226,3 +226,85 @@ def test_checkout_preserves_selected_grade_and_price(client, monkeypatch):
     conn.close()
     assert float(order['subtotal']) == 1002
     assert 'W260 (500g)' in order['items']
+
+
+def test_api_products_returns_all_16_cashew_grades_and_all_7_products(client):
+    """Verify public /api/products returns all 7 canonical products and Cashew has all 16 grades."""
+    app, c = client
+    res = c.get('/api/products')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert len(data) >= 7
+
+    names = [p['name_en'] for p in data]
+    assert any('Cashew' in n for n in names)
+    assert 'Makhana' in names
+    assert 'Badam' in names
+    assert 'Akhrot' in names
+    assert 'Kishmish' in names
+
+    cashew = next(p for p in data if 'Cashew' in p['name_en'])
+    grades = json.loads(cashew['grades']) if isinstance(cashew['grades'], str) else cashew['grades']
+    assert len(grades) == 16, f"Expected 16 cashew grades, got {len(grades)}"
+
+def test_admin_can_save_product_without_csrf_blocking(client):
+    """Verify that logged-in admin can update products via PUT /admin/api/products/<id> successfully."""
+    app, c = client
+    with c.session_transaction() as sess:
+        sess['admin_logged_in'] = True
+        sess['admin_user'] = 'admin'
+
+    conn = app.get_db()
+    first_prod = conn.execute("SELECT id FROM products LIMIT 1").fetchone()
+    conn.close()
+    pid = first_prod['id']
+
+    res = c.put(f'/admin/api/products/{pid}', json={
+        'name_en': 'Updated Product Test',
+        'name_hi': 'टेस्ट प्रोडक्ट',
+        'price': '₹999',
+        'stock': 123,
+        'grades': [{'name': '1kg', 'price': '₹999'}]
+    })
+    assert res.status_code == 200
+    assert res.get_json().get('success') is True
+
+
+def test_legacy_catalog_bootstrap_preserves_photos_and_stock(client):
+    app, c = client
+    conn = app.get_db()
+    conn.execute("DELETE FROM settings WHERE key='catalog_prices_2026_11_04'")
+    conn.execute("DELETE FROM products WHERE sku='MAK-001'")
+    conn.execute("UPDATE products SET stock=13, image='/images/almonds.webp' WHERE sku='CAS-001'")
+    conn.commit()
+    conn.close()
+    app.init_db()
+    products = c.get('/api/products').get_json()
+    assert any(p['sku'] == 'MAK-001' for p in products)
+    cashew = next(p for p in products if p['sku'] == 'CAS-001')
+    assert cashew['stock'] == 13
+    assert cashew['image'] == '/images/almonds.webp'
+
+
+def test_public_catalog_does_not_restore_admin_deleted_products(client):
+    app, c = client
+    conn = app.get_db()
+    conn.execute("DELETE FROM products WHERE sku='MAK-001'")
+    conn.commit()
+    conn.close()
+    app.init_db()
+    assert not any(p['sku'] == 'MAK-001' for p in c.get('/api/products').get_json())
+
+
+def test_authenticated_admin_still_requires_csrf_token(client):
+    app, c = client
+    c.post('/admin/login', data={'password': 'test-admin-pass-123'})
+    product = c.get('/api/products').get_json()[0]
+    app.app.config['TESTING'] = False
+    c.get('/admin/products')
+    blocked = c.put(f"/admin/api/products/{product['id']}", json=product)
+    assert blocked.status_code == 400
+    assert 'csrf' in blocked.get_json()['error'].lower()
+    token = c.get_cookie('csrf_token').value
+    assert c.put(f"/admin/api/products/{product['id']}", json=product,
+                 headers={'X-CSRF-TOKEN': token}).status_code == 200

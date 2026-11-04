@@ -38,6 +38,11 @@ def apply_catalog_update(cur):
             cur.execute(f'UPDATE products SET image=? WHERE sku IN ({placeholders}) OR name_en=?',
                         (image, *skus, name))
 
+    cur.execute(
+        'UPDATE products SET description_en=REPLACE(description_en, ?, ?) WHERE sku IN (?, ?)',
+        (' NOTE: 500g price (₹949) exceeds 1kg price (₹899) as specified.', '', 'AKH-001', 'WAL-001'),
+    )
+
     # Repair only the broken built-in paths; retain uploaded/custom photographs.
     for old, new in [
         ('cashew.jpg', 'cashew.jpeg'), ('almonds.jpg', 'almonds.webp'),

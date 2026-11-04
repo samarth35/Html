@@ -539,6 +539,207 @@ def get_db():
         conn.row_factory = sqlite3.Row
         return conn
 
+def sync_canonical_products(conn=None):
+    """Bootstrap missing canonical products once without resetting admin edits."""
+    should_close = False
+    if conn is None:
+        conn = get_db()
+        should_close = True
+
+    try:
+        if conn.execute("SELECT value FROM settings WHERE key='catalog_prices_2026_11_04'").fetchone():
+            return
+        rows = conn.execute("SELECT id, name_en, sku, grades FROM products").fetchall()
+        row_map = {}
+        for r in rows:
+            name = (r['name_en'] if isinstance(r, dict) else r[1]) or ''
+            sku = (r['sku'] if isinstance(r, dict) else r[2]) or ''
+            row_map[name.lower()] = r
+            if sku:
+                row_map[sku.lower()] = r
+
+        canonical_products = [
+            {
+                'sku': 'CAS-001',
+                'name_en': 'Premium Cashew (Kaju)',
+                'name_hi': 'प्रीमियम काजू',
+                'price': '₹879',
+                'weight': '1kg / 500g',
+                'old_price': '₹999',
+                'description_en': 'Large, creamy and hygienically graded premium whole cashews in all 8 export & wholesale grades (W400, Wmix, W320, W260, W240, W210, JK & JH). Choose your desired grade and pack size (1kg or 500g).',
+                'description_hi': 'बड़े, मलाईदार और स्वच्छ रूप से छांटे गए प्रीमियम काजू – सभी 8 ग्रेड्स (W400, Wmix, W320, W260, W240, W210, JK और JH) में उपलब्ध।',
+                'image': '/static/uploads/cashew.jpg',
+                'stock': 200,
+                'grades': json.dumps([
+                    {"name": "W400 (1kg)", "price": "₹879"},
+                    {"name": "W400 (500g)", "price": "₹499"},
+                    {"name": "Wmix (1kg)", "price": "₹899"},
+                    {"name": "Wmix (500g)", "price": "₹455"},
+                    {"name": "W320 (1kg)", "price": "₹949"},
+                    {"name": "W320 (500g)", "price": "₹479"},
+                    {"name": "W260 (1kg)", "price": "₹999"},
+                    {"name": "W260 (500g)", "price": "₹501"},
+                    {"name": "W240 (1kg)", "price": "₹1030"},
+                    {"name": "W240 (500g)", "price": "₹519"},
+                    {"name": "W210 Jumbo (1kg)", "price": "₹1099"},
+                    {"name": "W210 Jumbo (500g)", "price": "₹499"},
+                    {"name": "JK Grade (1kg)", "price": "₹879"},
+                    {"name": "JK Grade (500g)", "price": "₹449"},
+                    {"name": "JH Split (1kg)", "price": "₹920"},
+                    {"name": "JH Split (500g)", "price": "₹469"}
+                ])
+            },
+            {
+                'sku': 'MAK-001',
+                'name_en': 'Makhana',
+                'name_hi': 'मखाना',
+                'price': '₹1349',
+                'weight': '1kg / 500g',
+                'old_price': '₹1549',
+                'description_en': 'Premium fox nuts (Makhana) – light, crunchy and highly nutritious. Great for roasting.',
+                'description_hi': 'प्रीमियम मखाना – कुरकुरे और पौष्टिक नाश्ते के लिए उत्तम।',
+                'image': '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png',
+                'stock': 100,
+                'grades': json.dumps([
+                    {"name": "1kg", "price": "₹1349"},
+                    {"name": "500g", "price": "₹679"}
+                ])
+            },
+            {
+                'sku': 'BAD-001',
+                'name_en': 'Badam',
+                'name_hi': 'बादाम',
+                'price': '₹1249',
+                'weight': '1kg / 500g',
+                'old_price': '₹1449',
+                'description_en': 'California almonds – hand-sorted, rich in protein, fiber and healthy fats.',
+                'description_hi': 'कैलिफ़ोर्निया बादाम – प्रोटीन और फाइबर का बेहतरीन स्रोत।',
+                'image': '/static/uploads/almonds.jpg',
+                'stock': 150,
+                'grades': json.dumps([
+                    {"name": "1kg", "price": "₹1249"},
+                    {"name": "500g", "price": "₹629"}
+                ])
+            },
+            {
+                'sku': 'AKH-001',
+                'name_en': 'Akhrot',
+                'name_hi': 'अखरोट',
+                'price': '₹899',
+                'weight': '1kg / 500g',
+                'old_price': '₹1049',
+                'description_en': 'Whole walnuts – rich in Omega-3 fatty acids and antioxidants. ',
+                'description_hi': 'साबुत अखरोट – ओमेगा-3 और एंटीऑक्सीडेंट से भरपूर।',
+                'image': '/static/uploads/walnuts.jpg',
+                'stock': 100,
+                'grades': json.dumps([
+                    {"name": "1kg", "price": "₹899"},
+                    {"name": "500g", "price": "₹449"}
+                ])
+            },
+            {
+                'sku': 'KIS-001',
+                'name_en': 'Kishmish',
+                'name_hi': 'किशमिश',
+                'price': '₹549',
+                'weight': '1kg / 500g',
+                'old_price': '₹649',
+                'description_en': 'Premium golden raisins, naturally sun-dried. Sweet and full of natural energy.',
+                'description_hi': 'प्रीमियम किशमिश, धूप में सुखाई गई। मीठी और ऊर्जा से भरपूर।',
+                'image': '/static/uploads/raisins.jpg',
+                'stock': 200,
+                'grades': json.dumps([
+                    {"name": "1kg", "price": "₹549"},
+                    {"name": "500g", "price": "₹279"}
+                ])
+            },
+            {
+                'sku': 'PIS-001',
+                'name_en': 'Pistachio (Pista)',
+                'name_hi': 'पिस्ता (Pista)',
+                'price': '₹899',
+                'weight': '500g / 1kg',
+                'old_price': '₹1099',
+                'description_en': 'Premium roasted and lightly salted Iranian pistachios.',
+                'description_hi': 'प्रीमियम रोस्टेड और नमकीन पिस्ता।',
+                'image': '/static/uploads/pistachio.jpg',
+                'stock': 80,
+                'grades': json.dumps([
+                    {"name": "500g", "price": "₹899"},
+                    {"name": "1kg", "price": "₹1699"}
+                ])
+            },
+            {
+                'sku': 'DIW-001',
+                'name_en': 'Diwali Special Royal 4-Jar Gift Box',
+                'name_hi': 'दीवाली स्पेशल रॉयल 4-जार गिफ्ट बॉक्स',
+                'price': '₹1350',
+                'weight': 'Luxury Gift Box',
+                'old_price': '₹1699',
+                'description_en': 'Handcrafted Royal Peacock Palace wooden gift box with 4 airtight gold glass jars filled with Cashews, Almonds, Pistachios & Kishmish.',
+                'description_hi': 'रॉयल पीकॉक पैलेस गिफ्ट बॉक्स (4 एयरटाइट जार)।',
+                'image': '/static/uploads/diwali-gift-box.jpg',
+                'stock': 50,
+                'grades': json.dumps([
+                    {"name": "Royal 4-Jar Box", "price": "₹1350"}
+                ])
+            }
+        ]
+
+        legacy_name_aliases = {
+            'premium cashew': 'CAS-001',
+            'premium cashew (kaju)': 'CAS-001',
+            'makhana': 'MAK-001',
+            'badam': 'BAD-001',
+            'almonds': 'BAD-001',
+            'akhrot': 'AKH-001',
+            'walnuts': 'AKH-001',
+            'kishmish': 'KIS-001',
+            'raisins (kishmish)': 'KIS-001',
+            'pistachio': 'PIS-001',
+            'pistachio (pista)': 'PIS-001',
+            'diwali special royal 4-jar gift box': 'DIW-001',
+        }
+
+        for p in canonical_products:
+            target_row = None
+            sku_key = p['sku'].lower()
+            name_key = p['name_en'].lower()
+
+            if sku_key in row_map:
+                target_row = row_map[sku_key]
+            elif name_key in row_map:
+                target_row = row_map[name_key]
+            else:
+                for leg_name, target_sku in legacy_name_aliases.items():
+                    if target_sku == p['sku'] and leg_name in row_map:
+                        target_row = row_map[leg_name]
+                        break
+
+            if target_row:
+                row_id = target_row['id'] if isinstance(target_row, dict) else target_row[0]
+                # Match older catalogue names without replacing saved stock, names or photos.
+                conn.execute('UPDATE products SET sku=? WHERE id=?', (p['sku'], row_id))
+            else:
+                conn.execute(
+                    """INSERT INTO products (name_en, name_hi, price, weight, description_en,
+                       description_hi, image, stock, old_price, sku, grades)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (p['name_en'], p['name_hi'], p['price'], p['weight'], p['description_en'],
+                     p['description_hi'], p['image'], p['stock'], p['old_price'], p['sku'], p['grades'])
+                )
+        if should_close:
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if should_close:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
 def init_db():
     conn = get_db()
     cur = conn.cursor()
@@ -814,6 +1015,7 @@ def init_db():
                  '[{"name":"Royal 4-Jar Box","price":"₹1350"}]'),
             ]
         )
+    sync_canonical_products(conn)
     from catalog_migration import apply_catalog_update
     apply_catalog_update(cur)
     # Customer OTP login table
@@ -939,8 +1141,10 @@ def csrf_protect():
 @app.after_request
 def csrf_set_cookie(response):
     token = request.cookies.get('csrf_token') or getattr(g, 'csrf_token', None)
-    if token:
-        response.set_cookie('csrf_token', token, samesite='Lax', httponly=False)
+    if not token:
+        token = secrets.token_hex(24)
+        g.csrf_token = token
+    response.set_cookie('csrf_token', token, samesite='Lax', httponly=False, path='/')
     if request.path.startswith('/static/'):
         response.headers['Cache-Control'] = 'public, max-age=604800, stale-while-revalidate=86400'
         response.headers.pop('Pragma', None)
@@ -2599,72 +2803,90 @@ def validate_product_grades(raw):
 @login_required
 def admin_api_products():
     conn = get_db()
-    if request.method == 'GET':
-        rows = conn.execute('SELECT * FROM products ORDER BY id').fetchall()
-        conn.close()
-        return jsonify([dict(r) for r in rows])
-    else:
-        data = request.get_json() or {}
-        name_en = data.get('name_en', '').strip()
-        name_hi = data.get('name_hi', '').strip()
-        if not name_en or not name_hi:
-            return jsonify({'error': 'Name in both English and Hindi is required'}), 400
+    try:
+        if request.method == 'GET':
+            rows = conn.execute('SELECT * FROM products ORDER BY id').fetchall()
+            return jsonify([dict(r) for r in rows])
+        else:
+            data = request.get_json() or {}
+            name_en = data.get('name_en', '').strip()
+            name_hi = data.get('name_hi', '').strip()
+            if not name_en or not name_hi:
+                return jsonify({'error': 'Name in both English and Hindi is required'}), 400
+            try:
+                stock = int(data.get('stock', 0))
+            except (ValueError, TypeError):
+                stock = 0
+            try:
+                grades_json = validate_product_grades(data.get('grades', '[]'))
+            except ValueError as exc:
+                return jsonify({'error': str(exc), 'success': False}), 400
+            grades = json.loads(grades_json)
+            if grades:
+                data['price'] = grades[0]['price']
+            cur = conn.execute(
+                'INSERT INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, video, grades) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                (name_en, name_hi, data.get('price', ''), data.get('weight', ''),
+                 data.get('description_en', ''), data.get('description_hi', ''), data.get('image', ''),
+                 stock, data.get('old_price', ''), data.get('sku', ''), data.get('video', ''), grades_json)
+            )
+            conn.commit()
+            new_id = cur.lastrowid
+            return jsonify({'id': new_id, 'message': 'Product added successfully', 'success': True}), 201
+    except Exception as e:
         try:
-            stock = int(data.get('stock', 0))
-        except (ValueError, TypeError):
-            stock = 0
+            conn.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': str(e), 'success': False}), 500
+    finally:
         try:
-            grades_json = validate_product_grades(data.get('grades', '[]'))
-        except ValueError as exc:
             conn.close()
-            return jsonify({'error': str(exc)}), 400
-        grades = json.loads(grades_json)
-        if grades:
-            data['price'] = grades[0]['price']
-        cur = conn.execute(
-            'INSERT INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, video, grades) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            (name_en, name_hi, data.get('price', ''), data.get('weight', ''),
-             data.get('description_en', ''), data.get('description_hi', ''), data.get('image', ''),
-             stock, data.get('old_price', ''), data.get('sku', ''), data.get('video', ''), grades_json)
-        )
-        conn.commit()
-        new_id = cur.lastrowid
-        conn.close()
-        return jsonify({'id': new_id, 'message': 'Product added successfully'}), 201
+        except Exception:
+            pass
 
 @app.route('/admin/api/products/<int:pid>', methods=['PUT', 'DELETE'])
 @login_required
 def admin_api_product(pid):
     conn = get_db()
-    if request.method == 'PUT':
-        data = request.get_json() or {}
+    try:
+        if request.method == 'PUT':
+            data = request.get_json() or {}
+            try:
+                stock = int(data.get('stock', 0))
+            except (ValueError, TypeError):
+                stock = 0
+            try:
+                grades_json = validate_product_grades(data.get('grades', '[]'))
+            except ValueError as exc:
+                return jsonify({'error': str(exc), 'success': False}), 400
+            grades = json.loads(grades_json)
+            if grades:
+                data['price'] = grades[0]['price']
+            conn.execute(
+                'UPDATE products SET name_en=?, name_hi=?, price=?, weight=?, description_en=?, description_hi=?, image=?, stock=?, old_price=?, sku=?, video=?, grades=? WHERE id=?',
+                (data.get('name_en', ''), data.get('name_hi', ''), data.get('price', ''),
+                 data.get('weight', ''), data.get('description_en', ''), data.get('description_hi', ''),
+                 data.get('image', ''), stock, data.get('old_price', ''), data.get('sku', ''),
+                 data.get('video', ''), grades_json, pid)
+            )
+            conn.commit()
+            return jsonify({'message': 'Product updated successfully', 'success': True})
+        else:
+            conn.execute('DELETE FROM products WHERE id=?', (pid,))
+            conn.commit()
+            return jsonify({'message': 'Product deleted successfully', 'success': True})
+    except Exception as e:
         try:
-            stock = int(data.get('stock', 0))
-        except (ValueError, TypeError):
-            stock = 0
+            conn.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': str(e), 'success': False}), 500
+    finally:
         try:
-            grades_json = validate_product_grades(data.get('grades', '[]'))
-        except ValueError as exc:
             conn.close()
-            return jsonify({'error': str(exc)}), 400
-        grades = json.loads(grades_json)
-        if grades:
-            data['price'] = grades[0]['price']
-        conn.execute(
-            'UPDATE products SET name_en=?, name_hi=?, price=?, weight=?, description_en=?, description_hi=?, image=?, stock=?, old_price=?, sku=?, video=?, grades=? WHERE id=?',
-            (data.get('name_en', ''), data.get('name_hi', ''), data.get('price', ''),
-             data.get('weight', ''), data.get('description_en', ''), data.get('description_hi', ''),
-             data.get('image', ''), stock, data.get('old_price', ''), data.get('sku', ''),
-             data.get('video', ''), grades_json, pid)
-        )
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Product updated successfully'})
-    else:
-        conn.execute('DELETE FROM products WHERE id=?', (pid,))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Product deleted successfully'})
+        except Exception:
+            pass
 
 @app.route('/admin/api/site', methods=['GET', 'POST'])
 @login_required
@@ -4157,7 +4379,7 @@ def api_product_reviews(product_id):
         
         if not customer_name:
             customer_name = 'Verified Buyer'
-
+        
         existing_review = conn.execute(
             'SELECT id FROM product_reviews WHERE product_id=? AND customer_phone=?',
             (product_id, customer_phone),
@@ -4165,7 +4387,7 @@ def api_product_reviews(product_id):
         if existing_review:
             conn.close()
             return jsonify({'error': 'You already reviewed this product. Edit your existing review instead.'}), 400
-        
+
         # Insert review
         conn.execute(
             'INSERT INTO product_reviews (product_id, customer_name, customer_phone, rating, review_text) VALUES (?, ?, ?, ?, ?)',

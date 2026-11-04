@@ -9,7 +9,7 @@ export function GradeSelector({ product, selectedIndex, onChange, lang }: {
   const active = product.grades[selectedIndex] || product.grades[0];
   const gradeName = (label: string) => label.replace(/\s*\([^)]*\)\s*$/, '').trim();
   const codes = [...new Set(product.grades.map(g => gradeName(g.label)))];
-  const isCashew = product.category === 'cashews';
+  const isCashew = product.category === 'cashews' || /cashew|kaju/i.test(product.name_en);
   const buttonClass = (selected: boolean) => `px-2 py-2 rounded-lg border text-center cursor-pointer transition-colors ${selected
     ? 'bg-amber-400 border-amber-500 text-stone-950 font-semibold'
     : 'bg-white border-stone-200 text-stone-700 hover:border-amber-400'}`;

@@ -403,9 +403,13 @@ function openProductModal(id = null) {
             document.getElementById('pImageUrl').value = product.image || '';
             document.getElementById('pVideoUrl').value = product.video || '';
 
-            // Load grades
+            // Accept saved grades as either a JSON string or an array.
             let grades = [];
-            try { grades = JSON.parse(product.grades || '[]'); } catch(e) {}
+            if (Array.isArray(product.grades)) {
+                grades = product.grades;
+            } else if (typeof product.grades === 'string' && product.grades.trim()) {
+                try { grades = JSON.parse(product.grades); } catch(e) { grades = []; }
+            }
             setGradesInForm(grades);
 
             const status = getStockStatus(product.stock);

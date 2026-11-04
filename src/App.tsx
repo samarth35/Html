@@ -22,6 +22,8 @@ import { OrderTrackerModal } from './components/OrderTrackerModal';
 import { DiwaliSpecialPopup } from './components/DiwaliSpecialPopup';
 import { OrderSuccessPopup } from './components/OrderSuccessPopup';
 import { Footer } from './components/Footer';
+import { ShopTourModal } from './components/ShopTourModal';
+import { ShopTourSection } from './components/ShopTourSection';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => {
@@ -31,7 +33,7 @@ export default function App() {
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('jainzee_products_v9');
+      const saved = localStorage.getItem('jainzee_products_v13');
       if (saved) return JSON.parse(saved);
     } catch {}
     return INITIAL_PRODUCTS;
@@ -81,6 +83,7 @@ export default function App() {
   const [trackerModalOpen, setTrackerModalOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [diwaliPopupOpen, setDiwaliPopupOpen] = useState(true);
+  const [shopTourModalOpen, setShopTourModalOpen] = useState(false);
   const [justPlacedOrder, setJustPlacedOrder] = useState<Order | null>(null);
   const [selectedProductModal, setSelectedProductModal] = useState<{
     product: Product;
@@ -175,7 +178,7 @@ export default function App() {
   }, [lang]);
 
   useEffect(() => {
-    localStorage.setItem('jainzee_products_v9', JSON.stringify(products));
+    localStorage.setItem('jainzee_products_v13', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
@@ -403,6 +406,7 @@ export default function App() {
         onOpenTracker={() => setTrackerModalOpen(true)}
         onOpenAdmin={() => window.location.assign('/admin/products')}
         onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
+        onOpenShopTour={() => setShopTourModalOpen(true)}
       />
 
       <main className="flex-1">
@@ -420,10 +424,12 @@ export default function App() {
           onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
         />
 
+        <ShopTourSection lang={lang} onOpenModal={() => setShopTourModalOpen(true)} />
         <RoasteryAndStorySection lang={lang} />
       </main>
 
-      <Footer lang={lang} onOpenAdmin={() => window.location.assign('/admin/products')} />
+      <Footer lang={lang} onOpenAdmin={() => window.location.assign('/admin/products')} onOpenShopTour={() => setShopTourModalOpen(true)} />
+      <ShopTourModal isOpen={shopTourModalOpen} onClose={() => setShopTourModalOpen(false)} lang={lang} />
 
       <DiwaliSpecialPopup
         isOpen={diwaliPopupOpen}
