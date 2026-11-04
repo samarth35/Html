@@ -53,7 +53,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   perKmRate: 5,
   baseDeliveryCharge: 15,
   minDiwaliBoxPriceAfterDiscount: 1300,
-  razorpayKeyId: 'rzp_live_TvorDloFWDaxeT',
+  razorpayKeyId: (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_live_TvorDloFWDaxeT',
   twilioAccountSid: '',
   twilioVerifySid: '',
   smtpHost: 'smtp.gmail.com',

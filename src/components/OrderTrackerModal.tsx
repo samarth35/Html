@@ -21,10 +21,77 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
   onReorder,
 }) => {
   const [searchInput, setSearchInput] = useState('');
+  const [serverOrders, setServerOrders] = useState<Order[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const q = searchInput.trim();
+    if (q.length < 3) {
+      setServerOrders([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch('/api/track-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.found && Array.isArray(data.orders)) {
+            const mapped: Order[] = data.orders.map((so: any) => ({
+              id: `JZ-${so.id}`,
+              createdAt: so.created_at || new Date().toLocaleDateString('en-IN'),
+              status: so.status === 'paid_razorpay' ? 'Confirmed' : (so.status || 'Confirmed'),
+              customer: {
+                name: so.customer_name || 'Customer',
+                phone: so.customer_phone || '',
+                address: so.customer_address || '',
+                city: '',
+                pincode: '',
+                distanceKm: 4,
+              },
+              paymentMethod: (so.payment_method || 'cod').toUpperCase() as any,
+              items: Array.isArray(so.items)
+                ? so.items.map((it: any) => ({
+                    productId: it.product_id || 1,
+                    name_en: it.name_en || it.name || 'Product',
+                    name_hi: it.name_hi || it.name || 'उत्पाद',
+                    gradeLabel: it.variant || it.grade_label || 'Standard Pack',
+                    quantity: it.quantity || 1,
+                    unitPrice: Number(it.unit_price) || 0,
+                    lineTotal: Number(it.total || it.line_total) || 0,
+                  }))
+                : [],
+              subtotal: Number(so.subtotal) || Number(so.total) || 0,
+              discount: Number(so.discount_amount) || 0,
+              shipping: Number(so.shipping_charge) || 0,
+              total: Number(so.total) || 0,
+              distanceKm: 4,
+            }));
+            setServerOrders(mapped);
+          }
+        }
+      } catch {
+        // silent catch
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   if (!isOpen) return null;
 
-  const filteredOrders = orders.filter((o) => {
+  const combinedOrders = [
+    ...orders,
+    ...serverOrders.filter((so) => !orders.some((o) => o.id === so.id)),
+  ];
+
+  const filteredOrders = combinedOrders.filter((o) => {
     const q = searchInput.trim().toLowerCase();
     if (!q) return true;
     return (

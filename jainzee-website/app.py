@@ -367,9 +367,9 @@ def get_config_setting(key, default=''):
         pass
     # Guard against legacy revoked test credentials
     if key == 'razorpay_key_id' and (not val or val == 'rzp_test_TvNiX34TPC0UOV'):
-        val = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
-    elif key == 'razorpay_key_secret' and (not val or val == 'LYwVCkTtjBheXJMaq7W9EDms', 'PHkFeRPmPK4mJMO7Rv4WlrBJ', 'UserFlH9eIpM0GeKw0kV4qRB'):
-        val = os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
+        val = os.environ.get('RAZORPAY_KEY_ID', '')
+    elif key == 'razorpay_key_secret' and not val:
+        val = os.environ.get('RAZORPAY_KEY_SECRET', '')
     if val:
         return val
     env_val = os.environ.get(key.upper()) or os.environ.get(key)
@@ -756,13 +756,13 @@ def init_db():
     cur.execute("UPDATE settings SET value='Jainzee™ Food Processing Industries' WHERE key='shop_name_en' AND value NOT LIKE '%™%'")
     cur.execute("UPDATE settings SET value='जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' WHERE key='shop_name_hi' AND value NOT LIKE '%™%'")
 
-    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_id', 'rzp_live_TvorDloFWDaxeT')")
-    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_secret', 'LYwVCkTtjBheXJMaq7W9EDms')")
+    rzp_id = os.environ.get('RAZORPAY_KEY_ID', '')
+    rzp_secret = os.environ.get('RAZORPAY_KEY_SECRET', '')
+    if rzp_id:
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_id', ?)", (rzp_id,))
+    if rzp_secret:
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_secret', ?)", (rzp_secret,))
     conn.commit()
-    if os.environ.get('RAZORPAY_KEY_ID'):
-        cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_id'", (os.environ['RAZORPAY_KEY_ID'],))
-    if os.environ.get('RAZORPAY_KEY_SECRET'):
-        cur.execute("UPDATE settings SET value=? WHERE key='razorpay_key_secret'", (os.environ['RAZORPAY_KEY_SECRET'],))
 
 
     cur.executemany(
@@ -1174,6 +1174,48 @@ def refund_policy():
 
 # ---------------- PUBLIC ROUTES ----------------
 
+@app.route('/robots.txt')
+def robots_txt():
+    content = "User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n\nSitemap: https://jainzeefoods-jainzee.vercel.app/sitemap.xml\n"
+    return content, 200, {'Content-Type': 'text/plain'}
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://jainzeefoods-jainzee.vercel.app/</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://jainzeefoods-jainzee.vercel.app/privacy</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://jainzeefoods-jainzee.vercel.app/terms</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://jainzeefoods-jainzee.vercel.app/shipping</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://jainzeefoods-jainzee.vercel.app/refund</loc>
+    <lastmod>2026-11-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+</urlset>"""
+    return xml, 200, {'Content-Type': 'application/xml'}
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -1211,8 +1253,8 @@ def api_site():
     for r in rows:
         if r['key'] in PUBLIC_SETTINGS_KEYS:
             data[r['key']] = r['value']
-    if 'razorpay_key_id' in data and data['razorpay_key_id'] in ('rzp_test_TvNiX34TPC0UOV', 'rzp_live_TvorDloFWDaxeT', '', None):
-        data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    if 'razorpay_key_id' in data and not data['razorpay_key_id']:
+        data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID', '')
     return jsonify(data)
 
 @app.route('/admin/api/settings')
@@ -2068,6 +2110,7 @@ def api_track_order():
         
     return jsonify({'found': True, 'orders': orders_list})
 
+@app.route('/api/orders', methods=['POST'])
 @app.route('/api/customer/orders', methods=['GET', 'POST'])
 def api_customer_orders():
     if request.method == 'GET':
@@ -2088,23 +2131,57 @@ def api_customer_orders():
             return jsonify({'error': 'No items in order'}), 400
         import json as json_mod
         items_json = json_mod.dumps(items)
-        name = data.get('name', session.get('customer_name', ''))
-        phone = data.get('phone', '')
-        address = data.get('address', '')
+        name = data.get('customer_name') or data.get('name') or session.get('customer_name', '')
+        phone = data.get('customer_phone') or data.get('phone', '')
+        address = data.get('customer_address') or data.get('address', '')
+        subtotal = str(data.get('subtotal', ''))
+        discount_amount = str(data.get('discount_amount', ''))
+        shipping_charge = str(data.get('shipping_charge', '0'))
+        coupon_code = str(data.get('coupon_code', ''))
+        payment_method = str(data.get('payment_method', 'cod')).lower()
+        razorpay_payment_id = str(data.get('razorpay_payment_id', ''))
+        razorpay_order_id = str(data.get('razorpay_order_id', ''))
+        razorpay_signature = str(data.get('razorpay_signature', ''))
+        
+        status = 'paid_razorpay' if (payment_method == 'razorpay' and razorpay_payment_id) else 'confirmed'
+
         customer_id = session.get('customer_id')
         if not customer_id:
             customer_id, customer_name_jwt = get_jwt_customer()
             if customer_id and not name:
                 name = customer_name_jwt or name
+
         conn = get_db()
         cur = conn.execute(
-            'INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, items, total) VALUES (?, ?, ?, ?, ?, ?)',
-            (customer_id, name, phone, address, items_json, total)
+            '''INSERT INTO orders 
+               (customer_id, customer_name, customer_phone, customer_address, items, total,
+                status, subtotal, discount_amount, shipping_charge, coupon_code, payment_method,
+                razorpay_payment_id, razorpay_order_id, razorpay_signature) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            (customer_id, name, phone, address, items_json, str(total),
+             status, subtotal, discount_amount, shipping_charge, coupon_code, payment_method,
+             razorpay_payment_id, razorpay_order_id, razorpay_signature)
         )
-        conn.commit()
         order_id = cur.lastrowid or getattr(conn, 'lastrowid', 0)
+
+        # Decrement stock for ordered items
+        for it in items:
+            pid = it.get('product_id') or it.get('productId')
+            qty = int(it.get('quantity', 1) or 1)
+            if pid:
+                try:
+                    conn.execute('UPDATE products SET stock = MAX(stock - ?, 0) WHERE id=?', (qty, pid))
+                except Exception:
+                    pass
+
+        conn.commit()
         conn.close()
-        return jsonify({'id': order_id, 'message': 'Order placed successfully!'}), 201
+        return jsonify({
+            'success': True,
+            'id': order_id,
+            'order_id': f'JZ-{order_id}',
+            'message': 'Order placed successfully!'
+        }), 201
 
 @app.route('/api/my-orders', methods=['GET'])
 def api_my_orders():
@@ -3290,8 +3367,8 @@ def api_cart_count():
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
-    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
-    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms' or os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
+    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID', '')
+    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET', '')
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
@@ -3468,8 +3545,6 @@ def api_verify_payment():
     candidate_secrets = [
         os.environ.get('RAZORPAY_KEY_SECRET'),
         get_config_setting('razorpay_key_secret'),
-        'LYwVCkTtjBheXJMaq7W9EDms',
-        'LYwVCkTtjBheXJMaq7W9EDms', 'PHkFeRPmPK4mJMO7Rv4WlrBJ', 'UserFlH9eIpM0GeKw0kV4qRB'
     ]
     verified = False
     for secret in filter(None, candidate_secrets):
@@ -3514,8 +3589,6 @@ def api_checkout():
         candidate_secrets = [
             os.environ.get('RAZORPAY_KEY_SECRET'),
             get_config_setting('razorpay_key_secret'),
-            'LYwVCkTtjBheXJMaq7W9EDms',
-            'LYwVCkTtjBheXJMaq7W9EDms', 'PHkFeRPmPK4mJMO7Rv4WlrBJ', 'UserFlH9eIpM0GeKw0kV4qRB'
         ]
         verified = False
         for secret in filter(None, candidate_secrets):

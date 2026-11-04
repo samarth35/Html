@@ -95,6 +95,47 @@ export default function App() {
   };
 
   useEffect(() => {
+    fetch('/api/products')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((serverProducts) => {
+        if (Array.isArray(serverProducts) && serverProducts.length > 0) {
+          const mapped: Product[] = serverProducts.map((sp: any) => {
+            let parsedGrades: any[] = [];
+            try {
+              parsedGrades = typeof sp.grades === 'string' ? JSON.parse(sp.grades) : sp.grades;
+            } catch {}
+            if (!Array.isArray(parsedGrades) || parsedGrades.length === 0) {
+              const basePrice = Number(String(sp.price || '0').replace(/[^\d.]/g, '')) || 0;
+              parsedGrades = [
+                {
+                  label: sp.weight || 'Standard Pack',
+                  weight: sp.weight || '500g',
+                  price: basePrice,
+                  inStock: (sp.stock ?? 10) > 0,
+                },
+              ];
+            }
+            return {
+              id: sp.id,
+              name_en: sp.name_en,
+              name_hi: sp.name_hi,
+              description_en: sp.description_en,
+              description_hi: sp.description_hi,
+              sku: sp.sku || `JZ-${sp.id}`,
+              image: sp.image,
+              stock: sp.stock ?? 50,
+              grades: parsedGrades,
+              rating: 4.9,
+              reviewCount: 38,
+            };
+          });
+          setProducts(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!toastMessage) return;
     const t = window.setTimeout(() => setToastMessage(null), 2600);
     return () => window.clearTimeout(t);

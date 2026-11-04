@@ -182,11 +182,67 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
     setCouponInput('');
   };
 
-  const placeOrderNow = (overrideMethod?: 'COD' | 'UPI' | 'Razorpay', razorpayPaymentId?: string) => {
+  const placeOrderNow = async (
+    overrideMethod?: 'COD' | 'UPI' | 'Razorpay',
+    razorpayPaymentId?: string,
+    razorpayOrderId?: string,
+    razorpaySignature?: string
+  ) => {
     if (!customerName.trim() || !customerPhone.trim() || !customerAddress.trim()) return;
 
+    const chosenMethod = overrideMethod || paymentMethod;
+    let assignedOrderId = `JZ-${Math.floor(1050 + Math.random() * 8900)}`;
+
+    try {
+      const orderPayload = {
+        name: customerName.trim(),
+        customer_name: customerName.trim(),
+        phone: customerPhone.trim(),
+        customer_phone: customerPhone.trim(),
+        email: customerEmail.trim(),
+        address: `${customerAddress.trim()}, ${customerCity.trim()} - ${customerPincode.trim()}`,
+        customer_address: `${customerAddress.trim()}, ${customerCity.trim()} - ${customerPincode.trim()}`,
+        items: detailedItems.map((i) => ({
+          product_id: i.productId,
+          name_en: i.product.name_en,
+          name_hi: i.product.name_hi,
+          variant: i.grade.label,
+          grade_label: i.grade.label,
+          quantity: i.quantity,
+          unit_price: i.grade.price,
+          line_total: i.lineTotal,
+        })),
+        subtotal,
+        discount_amount: discount,
+        shipping_charge: shipping,
+        coupon_code: appliedCoupon?.code || '',
+        total,
+        payment_method: chosenMethod.toLowerCase(),
+        razorpay_payment_id: razorpayPaymentId || '',
+        razorpay_order_id: razorpayOrderId || '',
+        razorpay_signature: razorpaySignature || '',
+      };
+
+      const res = await fetch('/api/customer/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.order_id) {
+          assignedOrderId = data.order_id;
+        } else if (data && data.id) {
+          assignedOrderId = `JZ-${data.id}`;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend order sync notification:', err);
+    }
+
     const newOrder: Order = {
-      id: `JZ-${Math.floor(1050 + Math.random() * 8900)}`,
+      id: assignedOrderId,
       createdAt: new Date().toLocaleString('en-IN', {
         day: '2-digit',
         month: 'short',
@@ -204,7 +260,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
         pincode: customerPincode.trim(),
         distanceKm,
       },
-      paymentMethod: overrideMethod || paymentMethod,
+      paymentMethod: chosenMethod,
       items: detailedItems.map((i) => ({
         productId: i.productId,
         name_en: i.product.name_en,
@@ -221,6 +277,28 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
       distanceKm,
       total,
     };
+
+    // Google Ads & GA4 Purchase Conversion Tracking
+    if (typeof (window as any).gtag === 'function') {
+      try {
+        (window as any).gtag('event', 'purchase', {
+          transaction_id: assignedOrderId,
+          value: total,
+          currency: 'INR',
+          shipping: shipping,
+          tax: 0,
+          items: detailedItems.map((i) => ({
+            item_id: i.product.sku || String(i.productId),
+            item_name: i.product.name_en,
+            item_category: 'Dry Fruits',
+            price: i.grade.price,
+            quantity: i.quantity,
+          })),
+        });
+      } catch (err) {
+        console.warn('Google Analytics purchase tracking error:', err);
+      }
+    }
 
     onPlaceOrder(newOrder);
     onClearCart();
@@ -243,7 +321,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
         }
 
         const options: any = {
-          key: serverKeyId || settings.razorpayKeyId || 'rzp_live_TvorDloFWDaxeT',
+          key: serverKeyId || settings.razorpayKeyId || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || '',
           amount: Math.round(total * 100),
           currency: 'INR',
           name: 'Jainzee™ Food Processing Industries',
@@ -280,7 +358,12 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                 return;
               }
             }
-            placeOrderNow('Razorpay', response.razorpay_payment_id);
+            placeOrderNow(
+              'Razorpay',
+              response.razorpay_payment_id,
+              response.razorpay_order_id,
+              response.razorpay_signature
+            );
           },
           modal: {
             ondismiss: function () {
