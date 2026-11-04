@@ -12,6 +12,7 @@ import {
   Mail,
   Sparkles,
   Tag,
+  Store,
 } from 'lucide-react';
 import { Language } from '../types';
 import { STORE_INFO } from '../data/storeData';
@@ -24,6 +25,7 @@ interface NavbarProps {
   onOpenTracker: () => void;
   onOpenAdmin: () => void;
   onOpenDiwaliSpecial: () => void;
+  onOpenShopTour?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenTracker,
   onOpenAdmin,
   onOpenDiwaliSpecial,
+  onOpenShopTour,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -133,6 +136,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             <a href="#products" className="hover:text-amber-400 transition-colors whitespace-nowrap">
               {lang === 'hi' ? 'उत्पाद' : 'Products'}
             </a>
+            <button
+              type="button"
+              onClick={onOpenShopTour}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/25 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
+            >
+              <Store className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{lang === 'hi' ? 'दुकान व फैक्ट्री टूर' : 'Shop & Factory Tour'}</span>
+            </button>
             <button
               type="button"
               onClick={onOpenDiwaliSpecial}
@@ -264,6 +275,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Sidebar Links */}
             <nav className="p-3 flex-1 overflow-y-auto space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenShopTour?.();
+                }}
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-semibold bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25 cursor-pointer mb-2"
+              >
+                <Store className="w-4 h-4 text-emerald-400" />
+                <span>{lang === 'hi' ? '🏪 दुकान व फैक्ट्री टूर' : '🏪 Shop & Factory Tour'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {

@@ -6,6 +6,7 @@ import { STORE_INFO } from '../data/storeData';
 interface FooterProps {
   lang: Language;
   onOpenAdmin: () => void;
+  onOpenShopTour?: () => void;
 }
 
 type PolicyKey = 'privacy' | 'terms' | 'shipping' | 'replacement' | null;
@@ -40,7 +41,7 @@ const POLICIES: Record<Exclude<PolicyKey, null>, { title: string; body: string[]
   },
 };
 
-export const Footer: React.FC<FooterProps> = ({ lang, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ lang, onOpenAdmin, onOpenShopTour }) => {
   const [activePolicy, setActivePolicy] = useState<PolicyKey>(null);
 
   return (
@@ -105,6 +106,15 @@ export const Footer: React.FC<FooterProps> = ({ lang, onOpenAdmin }) => {
                 {lang === 'hi' ? 'त्वरित लिंक' : 'Quick Links'}
               </h4>
               <ul className="space-y-2 text-stone-400 text-xs sm:text-sm">
+                <li>
+                  <button
+                    type="button"
+                    onClick={onOpenShopTour}
+                    className="hover:text-amber-300 text-emerald-400 font-semibold transition-colors cursor-pointer text-left"
+                  >
+                    🏪 {lang === 'hi' ? 'दुकान व फैक्ट्री टूर (सियागंज)' : 'Shop & Factory Tour (Siyaganj)'}
+                  </button>
+                </li>
                 <li>
                   <a href="#home" className="hover:text-amber-300 transition-colors">
                     {lang === 'hi' ? 'होम' : 'Home'}

@@ -303,7 +303,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
                       </div>
 
                       {/* Cashew Multi-Grade & Weight Selector */}
-                      {product.category === 'cashews' && product.grades.length > 2 ? (
+                      {(product.category === 'cashews' || product.name_en.toLowerCase().includes('cashew')) ? (
                         <div className="pt-1 space-y-2">
                           <div>
                             <div className="flex items-center justify-between mb-1">

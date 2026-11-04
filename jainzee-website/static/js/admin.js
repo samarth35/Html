@@ -1,1103 +1,1107 @@
-// ==================== JAINZEE ADMIN JS ====================
-
-let editingProductId = null;
-let quickStockProductId = null;
-let currentProducts = [];
-
-// ==================== TOAST NOTIFICATIONS ====================
-
-// Premium UX layer (premium.js): SWR cache, animated toasts, motion.
-// Graceful fallbacks keep everything working if premium.js fails to load.
-const jz = window.JZ || null;
-
-function swrFetch(url, opts = {}) {
-    if (jz && jz.swrFetch) return jz.swrFetch(url, opts);
-    return fetch(url).then(res => {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-    });
-}
-
-function jzMutate(url) { if (jz && jz.mutate) jz.mutate(url); }
-function jzBusy(btn, busy) { if (jz && jz.btnBusy) jz.btnBusy(btn, busy); }
-
-function showToast(message, type = 'success') {
-    // premium.js renders the animated icon toast; fall back to the plain one.
-    if (jz && jz.toast) { jz.toast(message, type); return; }
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-}
-
-// ==================== MODAL HELPERS ====================
-
-function openModal(id) {
-    document.getElementById(id).classList.add('active');
-}
-
-function closeModal(id) {
-    document.getElementById(id).classList.remove('active');
-}
-
-// Close modal when clicking outside
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-        e.target.classList.remove('active');
-    }
-});
-
-// Close modal with Escape key
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
-    }
-});
-
-// ==================== UPLOAD HELPERS ====================
-// Vercel Functions reject any request body above ~4.5 MB, so large photos are
-// resized/compressed in the browser *before* upload. This lets an admin upload a
-// photo of practically any size (a 15 MB phone photo becomes ~400 KB) and keeps
-// the website fast. The server still enforces its own limits as a backstop.
-
-let uploadConfig = {
-    maxUploadBytes: 100 * 1024 * 1024,
-    maxImageDimension: 2000,
-    blobEnabled: false
-};
-
-async function loadUploadConfig() {
-    try {
-        // Static per-deployment limits - cache for 10 minutes.
-        uploadConfig = await swrFetch('/admin/api/upload-config', { staleTime: 600000 });
-    } catch (e) {
-        // Keep permissive defaults - the server enforces the real limits.
-    }
-}
-
-// Parse an upload response defensively. Server/proxy errors often come back as
-// HTML (Flask's "Internal Server Error" page, a CDN error page, ...), and a bare
-// `res.json()` would throw "Unexpected token '<'" and hide the real message.
-// Returns { ...payload } on success, or at least { error: '...' } on failure.
-async function readJsonResponse(res) {
-    const text = await res.text();
-    try {
-        const parsed = JSON.parse(text);
-        return (parsed && typeof parsed === 'object') ? parsed : {};
-    } catch (e) {
-        const snippet = (text || '')
-            .replace(/<[^>]*>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .slice(0, 160);
-        const status = `HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}`;
-        return {
-            error: snippet
-                ? `${status} - ${snippet}`
-                : `${status} - the server returned a non-JSON response.`
-        };
-    }
-}
-
-function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function decodableImageType(type) {
-    return /^image\/(jpe?g|png|webp|bmp|avif)$/i.test(type || '');
-}
-
-// Shrink a raster image in the browser. Returns a File, or the original file if
-// it is already small / the browser cannot decode it (e.g. HEIC in Chrome).
-async function resizeImageFile(file) {
-    const maxDim = uploadConfig.maxImageDimension || 2000;
-    let bitmap;
-    try {
-        try {
-            // Honour EXIF rotation where the browser supports it
-            bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-        } catch (e) {
-            bitmap = await createImageBitmap(file);
-        }
-    } catch (e) {
-        return file;
-    }
-
-    try {
-        const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
-        const width = Math.max(1, Math.round(bitmap.width * scale));
-        const height = Math.max(1, Math.round(bitmap.height * scale));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
-        if (bitmap.close) bitmap.close();
-
-        // WebP keeps transparency and compresses well; JPEG is the fallback.
-        let out = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.85));
-        let ext = 'webp';
-        if (!out) {
-            out = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
-            ext = 'jpg';
-        }
-        if (!out || out.size >= file.size) return file; // no benefit - keep original
-
-        const base = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
-        return new File([out], base + '.' + ext, { type: out.type });
-    } catch (e) {
-        return file;
-    }
-}
-
-// Prepare a picked file for upload: shrink images, then check the size limit.
-// Throws an Error with a readable message when the file cannot be sent.
-async function prepareUploadFile(file) {
-    const name = (file.name || '').toLowerCase();
-    const type = (file.type || '').toLowerCase();
-    let out = file;
-
-    // SVG is vector and GIF may be animated - never rasterise those.
-    if (decodableImageType(type) && !/\.(svg|gif)$/.test(name) && file.size > 300 * 1024) {
-        out = await resizeImageFile(file);
-    }
-
-    if (out.size > uploadConfig.maxUploadBytes) {
-        throw new Error(
-            'File is ' + formatBytes(out.size) + ' but this server allows up to ' +
-            formatBytes(uploadConfig.maxUploadBytes) + ' per upload. Please use a smaller file.'
-        );
-    }
-    return out;
-}
-
-// ==================== IMAGE UPLOAD ====================
-
-async function handleVideoUpload(input, urlFieldId) {
-    const file = input.files[0];
-    if (!file) return;
-
-    let uploadFile;
-    try {
-        uploadFile = await prepareUploadFile(file);
-    } catch (e) {
-        showToast(e.message, 'error');
-        input.value = '';
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', uploadFile, uploadFile.name);
-
-    try {
-        const res = await fetch('/admin/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await readJsonResponse(res);
-        if (!res.ok) {
-            throw new Error(data.error || 'Upload failed');
-        }
-        document.getElementById(urlFieldId).value = data.url;
-        showToast('Video uploaded successfully!');
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
-
-function addGradeRow(name = '', price = '') {
-    const container = document.getElementById('gradesContainer');
-    const row = document.createElement('div');
-    row.className = 'grade-row';
-    row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 8px;';
-    row.innerHTML = `
-        <input type="text" class="grade-name" placeholder="Grade name (e.g. Premium)" style="flex: 1;" value="${name}">
-        <input type="text" class="grade-price" placeholder="Price (e.g. ₹1,500)" style="flex: 1;" value="${price}">
-        <button type="button" class="btn-sm btn-sm-delete" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
-    `;
-    container.appendChild(row);
-}
-
-function getGradesFromForm() {
-    const grades = [];
-    document.querySelectorAll('.grade-row').forEach(row => {
-        const name = row.querySelector('.grade-name').value.trim();
-        const price = row.querySelector('.grade-price').value.trim();
-        if (name) grades.push({ name, price });
-    });
-    return grades;
-}
-
-function setGradesInForm(grades) {
-    const container = document.getElementById('gradesContainer');
-    container.innerHTML = '';
-    if (grades && grades.length) {
-        grades.forEach(g => addGradeRow(g.name, g.price));
-    } else {
-        addGradeRow();
-    }
-}
-
-async function handleImageUpload(input, urlFieldId, previewId) {
-    const file = input.files[0];
-    if (!file) return;
-
-    let uploadFile;
-    try {
-        uploadFile = await prepareUploadFile(file);
-    } catch (e) {
-        showToast(e.message, 'error');
-        input.value = '';
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', uploadFile, uploadFile.name);
-
-    try {
-        const res = await fetch('/admin/api/upload', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await readJsonResponse(res);
-        if (!res.ok) {
-            throw new Error(data.error || 'Upload failed');
-        }
-
-        // Set the URL field
-        document.getElementById(urlFieldId).value = data.url;
-
-        // Show preview
-        const preview = document.getElementById(previewId);
-        if (preview) {
-            const img = preview.querySelector('img');
-            img.src = data.url;
-            preview.style.display = 'block';
-        }
-
-        showToast('Image uploaded successfully!');
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
-
-// ==================== PRODUCTS MANAGEMENT ====================
-
-async function loadProducts() {
-    const tbody = document.getElementById('productsTableBody');
-    try {
-        // Paint instantly from cache when available; otherwise show shimmering
-        // skeleton rows while the first fetch runs.
-        const cached = (jz && jz.peek) ? jz.peek('/admin/api/products', { staleTime: 20000 }) : null;
-        if (cached && Array.isArray(cached) && cached.length) {
-            applyProducts(cached);
-        } else if (tbody && !tbody.childElementCount) {
-            tbody.innerHTML = (jz && jz.skeletonRows) ? jz.skeletonRows(6, 10) : '';
-        }
-
-        const data = await swrFetch('/admin/api/products', {
-            staleTime: 20000,
-            onUpdate: applyProducts // background refresh re-renders the table
-        });
-        applyProducts(data);
-    } catch (e) {
-        if (tbody && tbody.childElementCount && !(currentProducts && currentProducts.length)) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #dc3545;">Failed to load products. Please refresh.</td></tr>';
-        }
-        showToast('Failed to load products', 'error');
-    }
-}
-
-function applyProducts(data) {
-    currentProducts = Array.isArray(data) ? data : [];
-    renderProductsTable();
-    updateDashboardStats();
-}
-
-function getStockStatus(stock) {
-    stock = parseInt(stock) || 0;
-    if (stock <= 0) return { text: 'Out of Stock', class: 'stock-out' };
-    if (stock <= 20) return { text: 'Low Stock', class: 'stock-low' };
-    return { text: 'In Stock', class: 'stock-in' };
-}
-
-function renderProductsTable() {
-    const tbody = document.getElementById('productsTableBody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
-
-    if (!currentProducts.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #8a7362;">No products found. Click "Add Product" to create one.</td></tr>';
-        return;
-    }
-
-    currentProducts.forEach(p => {
-        const status = getStockStatus(p.stock);
-        const image = p.image ? `<img src="${p.image}" alt="${p.name_en}" onerror="this.style.display='none'">` : '<span style="font-size: 1.5rem;">📦</span>';
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${image}</td>
-            <td><strong>${p.name_en || ''}</strong></td>
-            <td>${p.name_hi || ''}</td>
-            <td>${p.sku || '-'}</td>
-            <td><strong style="color: #b8860b;">${p.price || '-'}</strong></td>
-            <td style="text-decoration: line-through; color: #999;">${p.old_price || '-'}</td>
-            <td>${p.weight || '-'}</td>
-            <td><strong>${p.stock}</strong></td>
-            <td><span class="stock-badge ${status.class}">${status.text}</span></td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn-sm btn-sm-stock" onclick="openQuickStock(${p.id})"><i class="fas fa-boxes"></i> Stock</button>
-                    <button class="btn-sm btn-sm-edit" onclick="openProductModal(${p.id})"><i class="fas fa-edit"></i> Edit</button>
-                    <button class="btn-sm btn-sm-delete" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button>
-                </div>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function openProductModal(id = null) {
-    editingProductId = id;
-    document.getElementById('modalTitle').textContent = id ? 'Edit Product' : 'Add Product';
-
-    // Reset form
-    document.getElementById('pNameEn').value = '';
-    document.getElementById('pNameHi').value = '';
-    document.getElementById('pPrice').value = '';
-    document.getElementById('pOldPrice').value = '';
-    document.getElementById('pWeight').value = '';
-    document.getElementById('pSku').value = '';
-    document.getElementById('pStock').value = '';
-    document.getElementById('pStatus').value = 'in_stock';
-    document.getElementById('pDescEn').value = '';
-    document.getElementById('pDescHi').value = '';
-    document.getElementById('pImageUrl').value = '';
-    document.getElementById('pImageInput').value = '';
-    document.getElementById('pImagePreview').style.display = 'none';
-    document.getElementById('pVideoUrl').value = '';
-    document.getElementById('pVideoInput').value = '';
-    setGradesInForm([]);
-
-    // Load product data if editing
-    if (id) {
-        const product = currentProducts.find(p => p.id === id);
-        if (product) {
-            document.getElementById('pNameEn').value = product.name_en || '';
-            document.getElementById('pNameHi').value = product.name_hi || '';
-            document.getElementById('pPrice').value = product.price || '';
-            document.getElementById('pOldPrice').value = product.old_price || '';
-            document.getElementById('pWeight').value = product.weight || '';
-            document.getElementById('pSku').value = product.sku || '';
-            document.getElementById('pStock').value = product.stock || 0;
-            document.getElementById('pDescEn').value = product.description_en || '';
-            document.getElementById('pDescHi').value = product.description_hi || '';
-            document.getElementById('pImageUrl').value = product.image || '';
-            document.getElementById('pVideoUrl').value = product.video || '';
-
-            // Load grades
-            let grades = [];
-            try { grades = JSON.parse(product.grades || '[]'); } catch(e) {}
-            setGradesInForm(grades);
-
-            const status = getStockStatus(product.stock);
-            document.getElementById('pStatus').value = status.class.replace('stock-', '');
-
-            if (product.image) {
-                const preview = document.getElementById('pImagePreview');
-                preview.querySelector('img').src = product.image;
-                preview.style.display = 'block';
-            }
-        }
-    }
-
-    openModal('productModal');
-}
-
-async function saveProduct(btn = null) {
-    const nameEn = document.getElementById('pNameEn').value.trim();
-    const nameHi = document.getElementById('pNameHi').value.trim();
-    const stock = document.getElementById('pStock').value;
-    const statusSel = document.getElementById('pStatus').value;
-
-    if (!nameEn || !nameHi) {
-        showToast('Name in both English and Hindi is required!', 'error');
-        return;
-    }
-
-    // Validate stock
-    let stockNum = parseInt(stock) || 0;
-
-    const data = {
-        name_en: nameEn,
-        name_hi: nameHi,
-        price: document.getElementById('pPrice').value.trim(),
-        old_price: document.getElementById('pOldPrice').value.trim(),
-        weight: document.getElementById('pWeight').value.trim(),
-        sku: document.getElementById('pSku').value.trim(),
-        stock: stockNum,
-        description_en: document.getElementById('pDescEn').value.trim(),
-        description_hi: document.getElementById('pDescHi').value.trim(),
-        image: document.getElementById('pImageUrl').value.trim(),
-        video: document.getElementById('pVideoUrl').value.trim(),
-        grades: getGradesFromForm()
-    };
-
-    jzBusy(btn, true);
-    try {
-        let res;
-        if (editingProductId) {
-            res = await fetch(`/admin/api/products/${editingProductId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-        } else {
-            res = await fetch('/admin/api/products', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-        }
-
-        const result = await res.json();
-        if (!res.ok) {
-            throw new Error(result.error || 'Failed to save product');
-        }
-
-        // Invalidate cached product lists (admin + public storefront) so the
-        // fresh data is fetched on the next render.
-        jzMutate('/admin/api/products');
-        jzMutate('/api/products');
-        showToast(editingProductId ? 'Product updated successfully!' : 'Product added successfully!');
-        closeModal('productModal');
-        loadProducts();
-    } catch (e) {
-        showToast(e.message, 'error');
-    } finally {
-        jzBusy(btn, false);
-    }
-}
-
-async function deleteProduct(id) {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-
-    try {
-        const res = await fetch(`/admin/api/products/${id}`, {
-            method: 'DELETE'
-        });
-        const result = await res.json();
-        if (!res.ok) {
-            throw new Error(result.error || 'Failed to delete product');
-        }
-        jzMutate('/admin/api/products');
-        jzMutate('/api/products');
-        showToast('Product deleted!');
-        loadProducts();
-    } catch (e) {
-        showToast(e.message, 'error');
-    }
-}
-
-// ==================== QUICK STOCK UPDATE ====================
-
-function openQuickStock(id) {
-    quickStockProductId = id;
-    const product = currentProducts.find(p => p.id === id);
-    if (!product) return;
-
-    document.getElementById('stockModalProductName').textContent = product.name_en || '';
-    document.getElementById('stockCurrent').value = product.stock || 0;
-    document.getElementById('stockChange').value = '';
-    document.getElementById('stockNew').value = '';
-    document.getElementById('stockRate').value = product.price || '';
-
-    openModal('stockModal');
-}
-
-async function saveQuickStock(btn = null) {
-    if (!quickStockProductId) return;
-    const product = currentProducts.find(p => p.id === quickStockProductId);
-    if (!product) return;
-
-    const currentStock = parseInt(document.getElementById('stockCurrent').value) || 0;
-    const change = parseInt(document.getElementById('stockChange').value) || 0;
-    const newVal = document.getElementById('stockNew').value;
-    const rate = document.getElementById('stockRate').value;
-
-    // Calculate final stock: if new value provided use it, else current + change
-    let finalStock;
-    if (newVal !== '') {
-        finalStock = parseInt(newVal) || 0;
-    } else {
-        finalStock = currentStock + change;
-    }
-    if (finalStock < 0) finalStock = 0;
-
-    const data = {
-        name_en: product.name_en || '',
-        name_hi: product.name_hi || '',
-        price: rate || product.price || '',
-        old_price: product.old_price || '',
-        weight: product.weight || '',
-        sku: product.sku || '',
-        stock: finalStock,
-        description_en: product.description_en || '',
-        description_hi: product.description_hi || '',
-        image: product.image || '',
-        video: product.video || '',
-        grades: product.grades || '[]'
-    };
-
-    jzBusy(btn, true);
-    try {
-        const res = await fetch(`/admin/api/products/${quickStockProductId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        const result = await res.json();
-        if (!res.ok) {
-            throw new Error(result.error || 'Failed to update stock');
-        }
-        jzMutate('/admin/api/products');
-        jzMutate('/api/products');
-        showToast('Stock updated successfully!');
-        closeModal('stockModal');
-        loadProducts();
-    } catch (e) {
-        showToast(e.message, 'error');
-    } finally {
-        jzBusy(btn, false);
-    }
-}
-
-// ==================== ORDER ALERTS & LIVE POLLING ====================
-
-let lastKnownOrderCount = null;
-let newOrderAlertEnabled = true;
-
-// Play a subtle chime when a new order arrives
-function playOrderChime() {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 880;
-        gain.gain.value = 0.15;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
-        osc.stop(ctx.currentTime + 0.3);
-    } catch (e) {
-        // Audio not supported - ignore
-    }
-}
-
-// Highlight a new order row / card with a visual pulse
-function flashNewOrder(orderId) {
-    const row = document.querySelector(`[data-order-id="${orderId}"]`);
-    const card = document.querySelector(`[data-order-card-id="${orderId}"]`);
-    const el = row || card;
-    if (el) {
-        el.classList.add('new-order-flash');
-        setTimeout(() => el.classList.remove('new-order-flash'), 3000);
-    }
-}
-
-// Poll /admin/api/orders every 10 seconds to detect new/unfulfilled orders
-async function pollOrdersForAlerts() {
-    // Only run on pages that have an orders table or an orders alert badge
-    if (!document.getElementById('ordersTableBody') && !document.getElementById('newOrdersBadge')) return;
-
-    try {
-        const res = await fetch('/admin/api/orders');
-        if (!res.ok || res.status === 302) return; // Not logged in or error
-        const orders = await res.json();
-        const pendingCount = orders.filter(o => String(o.status || '').startsWith('pending')).length;
-
-        // Update the "New Orders" badge if present
-        const badge = document.getElementById('newOrdersBadge');
-        if (badge) {
-            badge.textContent = pendingCount;
-            badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
-        }
-
-        // Detect new orders (first poll establishes baseline, subsequent polls alert)
-        if (lastKnownOrderCount !== null) {
-            if (orders.length > lastKnownOrderCount) {
-                const newOnes = orders.slice(0, orders.length - lastKnownOrderCount);
-                newOnes.forEach(o => {
-                    if (String(o.status || '').startsWith('pending')) {
-                        flashNewOrder(o.id);
-                        if (newOrderAlertEnabled) playOrderChime();
-                        showToast('🔔 New order #' + o.id + ' received!', 'success');
-                    }
-                });
-            }
-        }
-        lastKnownOrderCount = orders.length;
-    } catch (e) {
-        // Silent - polling continues
-    }
-}
-
-// ==================== DASHBOARD STATS ====================
-
-function updateDashboardStats() {
-    const statStock = document.getElementById('statStock');
-    const statLowStock = document.getElementById('statLowStock');
-    const statProducts = document.getElementById('statProducts');
-
-    if (statProducts) statProducts.textContent = currentProducts.length;
-
-    const totalStock = currentProducts.reduce((sum, p) => sum + (parseInt(p.stock) || 0), 0);
-    if (statStock) statStock.textContent = totalStock;
-
-    const lowStockCount = currentProducts.filter(p => (parseInt(p.stock) || 0) <= 20).length;
-    if (statLowStock) statLowStock.textContent = lowStockCount;
-}
-
-// ==================== SETTINGS MANAGEMENT ====================
-
-async function loadSettings(forceFresh = false) {
-    const url = '/admin/api/site';
-    const skeleton = document.getElementById('settingsSkeleton');
-
-    try {
-        // Cached paint: the settings form fills instantly when a cached copy
-        // exists; only a truly cold load shows the shimmering skeleton.
-        if (forceFresh) jzMutate(url);
-        const cached = (jz && jz.peek) ? jz.peek(url, { staleTime: 30000 }) : null;
-        if (skeleton) skeleton.hidden = !!cached;
-
-        const data = await swrFetch(url, {
-            staleTime: 30000,
-            onUpdate: applySettings // background refresh keeps previews current
-        });
-        applySettings(data);
-    } catch (e) {
-        showToast('Failed to load settings', 'error');
-    } finally {
-        if (skeleton) skeleton.hidden = true;
-    }
-}
-
-function applySettings(result) {
-    // The API returns {success: true, data: {...}} - read the nested data object!
-    // Only fall back to result if data is missing entirely (not just empty)
-    const data = (result && result.data) ? result.data : result;
-
-    // Shop info
-    setVal('sShopNameEn', data.shop_name_en);
-    setVal('sShopNameHi', data.shop_name_hi);
-    setVal('sTaglineEn', data.tagline_en);
-    setVal('sTaglineHi', data.tagline_hi);
-    setVal('sAboutEn', data.about_en);
-    setVal('sAboutHi', data.about_hi);
-
-    // Contact
-    setVal('sAddressEn', data.address_en);
-    setVal('sAddressHi', data.address_hi);
-    setVal('sPhone', data.phone);
-    setVal('sWhatsapp', data.whatsapp);
-    setVal('sEmail', data.email);
-    setVal('sHoursEn', data.hours_en);
-    setVal('sHoursHi', data.hours_hi);
-
-    // Logo
-    setVal('sLogoUrl', data.logo || '');
-    if (data.logo) {
-        const preview = document.getElementById('logoPreview') || document.getElementById('sLogoPreview');
-        if (preview) {
-            preview.querySelector('img').src = data.logo;
-            preview.style.display = 'block';
-        }
-    }
-
-    // Discount & Payment
-    // Use global_discount_percent (canonical) with fallback to legacy global_discount
-    setVal('sGlobalDiscount', data.global_discount_percent || data.global_discount || '0');
-    setVal('sUpiId', data.upi_id || '');
-    setVal('sGstin', data.gstin || '');
-    setVal('sTaxPercent', data.tax_percent || '');
-    setVal('sShippingCharge', data.shipping_charge || '50');
-    setVal('sFreeShippingMin', data.free_shipping_min || '1000');
-
-    // Gateway & OTP settings
-    setVal('sRazorpayKeyId', data.razorpay_key_id || '');
-    setVal('sRazorpayKeySecret', data.razorpay_key_secret || '');
-    setVal('sTwilioAccountSid', data.twilio_account_sid || '');
-    setVal('sTwilioAuthToken', data.twilio_auth_token || '');
-    setVal('sTwilioVerifyServiceSid', data.twilio_verify_service_sid || '');
-    setVal('sSmtpHost', data.smtp_host || 'smtp.gmail.com');
-    setVal('sSmtpPort', data.smtp_port || '587');
-    setVal('sSmtpUser', data.smtp_user || 'info@jainzee.in');
-    setVal('sSmtpPass', data.smtp_pass || '');
-    setVal('sSmtpFrom', data.smtp_from || 'info@jainzee.in');
-
-    // UPI QR Code preview (Base64 permanent storage)
-    if (data.upi_qr_data) {
-        const qrPreview = document.getElementById('upiQrPreview');
-        if (qrPreview) {
-            qrPreview.querySelector('img').src = data.upi_qr_data;
-            qrPreview.style.display = 'block';
-        }
-    }
-}
-
-function setVal(id, value) {
-    const el = document.getElementById(id);
-    // NEVER overwrite with undefined - use empty string fallback safely
-    if (el && value !== undefined && value !== null) el.value = value || '';
-}
-
-async function saveSettings(btn = null) {
-    // Guard: if the form contains NO data at all (e.g. failed loadSettings), abort - never wipe settings
-    const shopNameEn = document.getElementById('sShopNameEn');
-    if (!shopNameEn || shopNameEn.value.trim() === '') {
-        showToast('❌ Settings form is empty. Please reload the page first - save ABORTED to protect your data.', 'error');
-        await loadSettings(true);
-        return;
-    }
-
-    const data = {
-        shop_name_en: shopNameEn.value.trim(),
-        shop_name_hi: document.getElementById('sShopNameHi').value.trim(),
-        tagline_en: document.getElementById('sTaglineEn').value.trim(),
-        tagline_hi: document.getElementById('sTaglineHi').value.trim(),
-        about_en: document.getElementById('sAboutEn').value.trim(),
-        about_hi: document.getElementById('sAboutHi').value.trim(),
-        address_en: document.getElementById('sAddressEn').value.trim(),
-        address_hi: document.getElementById('sAddressHi').value.trim(),
-        phone: document.getElementById('sPhone').value.trim(),
-        whatsapp: document.getElementById('sWhatsapp').value.trim(),
-        email: document.getElementById('sEmail').value.trim(),
-        hours_en: document.getElementById('sHoursEn').value.trim(),
-        hours_hi: document.getElementById('sHoursHi').value.trim(),
-        logo: document.getElementById('sLogoUrl').value.trim(),
-        global_discount: document.getElementById('sGlobalDiscount').value.trim(),
-        global_discount_percent: document.getElementById('sGlobalDiscount').value.trim(),
-        upi_id: document.getElementById('sUpiId').value.trim(),
-        gstin: document.getElementById('sGstin') ? document.getElementById('sGstin').value.trim() : '',
-        tax_percent: document.getElementById('sTaxPercent') ? document.getElementById('sTaxPercent').value.trim() : '',
-        shipping_charge: document.getElementById('sShippingCharge') ? document.getElementById('sShippingCharge').value.trim() : '50',
-        free_shipping_min: document.getElementById('sFreeShippingMin') ? document.getElementById('sFreeShippingMin').value.trim() : '1000',
-        razorpay_key_id: document.getElementById('sRazorpayKeyId') ? document.getElementById('sRazorpayKeyId').value.trim() : '',
-        razorpay_key_secret: document.getElementById('sRazorpayKeySecret') ? document.getElementById('sRazorpayKeySecret').value.trim() : '',
-        twilio_account_sid: document.getElementById('sTwilioAccountSid') ? document.getElementById('sTwilioAccountSid').value.trim() : '',
-        twilio_auth_token: document.getElementById('sTwilioAuthToken') ? document.getElementById('sTwilioAuthToken').value.trim() : '',
-        twilio_verify_service_sid: document.getElementById('sTwilioVerifyServiceSid') ? document.getElementById('sTwilioVerifyServiceSid').value.trim() : '',
-        smtp_host: document.getElementById('sSmtpHost') ? document.getElementById('sSmtpHost').value.trim() : 'smtp.gmail.com',
-        smtp_port: document.getElementById('sSmtpPort') ? document.getElementById('sSmtpPort').value.trim() : '587',
-        smtp_user: document.getElementById('sSmtpUser') ? document.getElementById('sSmtpUser').value.trim() : 'info@jainzee.in',
-        smtp_pass: document.getElementById('sSmtpPass') ? document.getElementById('sSmtpPass').value.trim() : '',
-        smtp_from: document.getElementById('sSmtpFrom') ? document.getElementById('sSmtpFrom').value.trim() : 'info@jainzee.in'
-    };
-
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(data));
-    
-    // Append QR code file if selected
-    const qrInput = document.getElementById('upiQrInput');
-    if (qrInput.files && qrInput.files[0]) {
-        formData.append('upi_qr_code', qrInput.files[0]);
-    }
-
-    jzBusy(btn, true);
-    try {
-        const res = await fetch('/admin/api/site', {
-            method: 'POST',
-            body: formData
-            // NO Content-Type header - browser sets it automatically for FormData
-        });
-        
-        // Check if response is OK before parsing JSON
-        if (!res.ok) {
-            const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-            throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
-        }
-        
-        const result = await res.json();
-        if (result.success) {
-            // Invalidate BOTH the admin settings cache and the public site
-            // cache so every page shows the new values immediately.
-            jzMutate('/admin/api/site');
-            jzMutate('/api/site');
-            showToast('✅ Settings saved successfully!', 'success');
-            
-            // Clear QR input after successful upload
-            if (qrInput.files && qrInput.files[0]) {
-                qrInput.value = '';
-            }
-            
-            // Reload settings to show updated preview
-            await loadSettings(true);
-        } else {
-            throw new Error(result.error || 'Failed to save settings');
-        }
-    } catch (e) {
-        showToast('❌ ' + e.message, 'error');
-        console.error('Save settings error:', e);
-    } finally {
-        jzBusy(btn, false);
-    }
-}
-
-// ==================== CHANGE PASSWORD ====================
-
-async function changePassword(btn = null) {
-    const oldPw = document.getElementById('sOldPassword').value;
-    const newPw = document.getElementById('sNewPassword').value;
-
-    if (!oldPw || !newPw) {
-        showToast('Please fill both password fields', 'error');
-        return;
-    }
-    if (newPw.length < 6) {
-        showToast('New password must be at least 6 characters', 'error');
-        return;
-    }
-
-    jzBusy(btn, true);
-    try {
-        const res = await fetch('/admin/api/change-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ old_password: oldPw, new_password: newPw })
-        });
-        const result = await res.json();
-        if (!res.ok) {
-            throw new Error(result.error || 'Failed to change password');
-        }
-        showToast('Password changed successfully!');
-        document.getElementById('sOldPassword').value = '';
-        document.getElementById('sNewPassword').value = '';
-    } catch (e) {
-        showToast(e.message, 'error');
-    } finally {
-        jzBusy(btn, false);
-    }
-}
-
-// ==================== MAIN PAGE VIDEO UPLOAD ====================
-
-async function uploadMainVideo(file) {
-    const btn = document.getElementById('uploadVideoBtn');
-    const msg = document.getElementById('videoUploadMsg');
-    if (btn) btn.disabled = true;
-    if (msg) msg.textContent = 'Uploading video... This may take a few seconds for large files.';
-
-    try {
-        file = await prepareUploadFile(file);
-    } catch (e) {
-        if (msg) {
-            msg.innerHTML = '<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> ' + e.message + '</span>';
-        }
-        showToast(e.message, 'error');
-        if (btn) btn.disabled = false;
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', file, file.name);
-
-    try {
-        const res = await fetch('/admin/api/upload-main-video', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await readJsonResponse(res);
-        if (!res.ok) throw new Error(data.error || 'Upload failed');
-
-        if (msg) {
-            msg.innerHTML = '<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Video uploaded successfully! It will now show on the main page.</span>';
-        }
-        showToast('Main page video updated successfully!');
-    } catch (e) {
-        if (msg) {
-            msg.innerHTML = '<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Upload failed: ' + e.message + '</span>';
-        }
-        showToast('Upload failed: ' + e.message, 'error');
-    } finally {
-        if (btn) btn.disabled = false;
-    }
-}
-
-// ==================== INIT ====================
-
-document.addEventListener('DOMContentLoaded', () => {
-    // Fetch upload limits (Vercel body limit, allowed types, ...)
-    loadUploadConfig();
-
-    // Detect current page
-    const hasProductsTable = document.getElementById('productsTableBody');
-    const hasSettingsForm = document.getElementById('sShopNameEn');
-
-    if (hasProductsTable) {
-        loadProducts();
-    }
-
-    if (hasSettingsForm) {
-        loadSettings();
-        loadGeneralMedia();
-    }
-
-    // Main video upload form handler
-    const mainVideoForm = document.getElementById('mainVideoUploadForm');
-    if (mainVideoForm) {
-        mainVideoForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const fileInput = document.getElementById('mainVideoInput');
-            if (!fileInput.files || !fileInput.files[0]) {
-                showToast('Please select a video file first!', 'error');
-                return;
-            }
-            uploadMainVideo(fileInput.files[0]);
-        });
-    }
-
-    // Start order alert polling (every 10 seconds) on admin dashboard & orders pages
-    if (document.getElementById('ordersTableBody') || document.getElementById('newOrdersBadge')) {
-        pollOrdersForAlerts(); // First poll establishes baseline
-        setInterval(pollOrdersForAlerts, 10000);
-    }
-});
-
-// ==================== UPI QR CODE UPLOAD ====================
-
-async function handleUpiQrUpload(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const preview = document.getElementById('upiQrPreview');
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-        preview.querySelector('img').src = e.target.result;
-        preview.style.display = 'block';
-    };
-    
-    reader.readAsDataURL(file);
-}
-
-// ==================== GENERAL MEDIA (Factory & Company) ====================
-
-async function uploadGeneralMedia(btn = null) {
-    const title = document.getElementById('generalMediaTitle').value;
-    const category = document.getElementById('generalMediaCategory').value;
-    const fileInput = document.getElementById('generalMediaFileInput');
-    const msgDiv = document.getElementById('generalMediaUploadMsg');
-
-    if (!fileInput.files || !fileInput.files[0]) {
-        msgDiv.innerHTML = '<span style="color: #dc3545;">Please select a file first.</span>';
-        return;
-    }
-
-    let uploadFile;
-    try {
-        uploadFile = await prepareUploadFile(fileInput.files[0]);
-    } catch (e) {
-        msgDiv.innerHTML = '<span style="color: #dc3545;">❌ ' + e.message + '</span>';
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', uploadFile, uploadFile.name);
-    formData.append('title', title);
-    formData.append('category', category);
-
-    msgDiv.innerHTML = '<span style="color: #007bff;"><i class="fas fa-spinner fa-spin"></i> Uploading...</span>';
-    jzBusy(btn, true);
-
-    try {
-        const res = await fetch('/admin/api/general-media', {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        });
-        const data = await readJsonResponse(res);
-        if (res.ok) {
-            msgDiv.innerHTML = '<span style="color: #28a745;">✓ Media uploaded successfully!</span>';
-            fileInput.value = '';
-            document.getElementById('generalMediaTitle').value = '';
-            jzMutate('/admin/api/general-media');
-            jzMutate('/api/general-media');
-            loadGeneralMedia();
-        } else {
-            msgDiv.innerHTML = '<span style="color: #dc3545;">❌ ' + (data.error || 'Upload failed') + '</span>';
-        }
-    } catch(err) {
-        msgDiv.innerHTML = '<span style="color: #dc3545;">❌ Upload failed. Server issue.</span>';
-    } finally {
-        jzBusy(btn, false);
-    }
-}
-
-async function loadGeneralMedia() {
-    const mediaList = document.getElementById('generalMediaList');
-    if (!mediaList) return;
-    
-    try {
-        const cached = (jz && jz.peek) ? jz.peek('/admin/api/general-media', { staleTime: 20000 }) : null;
-        if (cached && Array.isArray(cached) && cached.length) {
-            renderGeneralMedia(cached);
-            return;
-        }
-        mediaList.innerHTML = (jz && jz.skeletonLines)
-            ? jz.skeletonLines(4)
-            : '<p style="color: var(--text-light);">Loading...</p>';
-        const media = await swrFetch('/admin/api/general-media', {
-            staleTime: 20000,
-            onUpdate: renderGeneralMedia
-        });
-        renderGeneralMedia(media);
-    } catch(e) {
-        mediaList.innerHTML = '<p style="color: #dc3545;">Failed to load media.</p>';
-    }
-}
-
-function renderGeneralMedia(media) {
-    const mediaList = document.getElementById('generalMediaList');
-    if (!mediaList) return;
-    media = Array.isArray(media) ? media : [];
-    if (!media.length) {
-        mediaList.innerHTML = '<p style="color: var(--text-light);">No media uploaded yet.</p>';
-        return;
-    }
-    mediaList.innerHTML = '';
-    media.forEach(m => {
-        const div = document.createElement('div');
-        div.style.cssText = 'position: relative; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,215,0,0.2);';
-        if (m.type === 'video') {
-            div.innerHTML = '<video controls style="width:100%; height:150px; object-fit:cover;"><source src="' + m.url + '" type="video/mp4"></video>';
-        } else {
-            div.innerHTML = '<img src="' + m.url + '" loading="lazy" decoding="async" style="width:100%; height:150px; object-fit:cover;">';
-        }
-        const delBtn = document.createElement('button');
-        delBtn.innerHTML = '<i class="fas fa-trash"></i>';
-        delBtn.onclick = () => deleteGeneralMedia(m.id);
-        delBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: rgba(220,53,69,0.8); color: white; border: none; width: 25px; height: 25px; border-radius: 50%; cursor: pointer;';
-        div.appendChild(delBtn);
-        mediaList.appendChild(div);
-    });
-}
-
-async function deleteGeneralMedia(mediaId) {
-    if (!confirm('Delete this media?')) return;
-    try {
-        await fetch('/admin/api/general-media/' + mediaId, { method: 'DELETE' });
-        jzMutate('/admin/api/general-media');
-        jzMutate('/api/general-media');
-        loadGeneralMedia();
-    } catch(e) {}
-}
+// ==================== JAINZEE ADMIN JS ====================
+
+let editingProductId = null;
+let quickStockProductId = null;
+let currentProducts = [];
+
+// ==================== TOAST NOTIFICATIONS ====================
+
+// Premium UX layer (premium.js): SWR cache, animated toasts, motion.
+// Graceful fallbacks keep everything working if premium.js fails to load.
+const jz = window.JZ || null;
+
+function swrFetch(url, opts = {}) {
+    if (jz && jz.swrFetch) return jz.swrFetch(url, opts);
+    return fetch(url).then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+    });
+}
+
+function jzMutate(url) { if (jz && jz.mutate) jz.mutate(url); }
+function jzBusy(btn, busy) { if (jz && jz.btnBusy) jz.btnBusy(btn, busy); }
+
+function showToast(message, type = 'success') {
+    // premium.js renders the animated icon toast; fall back to the plain one.
+    if (jz && jz.toast) { jz.toast(message, type); return; }
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// ==================== MODAL HELPERS ====================
+
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+        e.target.classList.remove('active');
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+    }
+});
+
+// ==================== UPLOAD HELPERS ====================
+// Vercel Functions reject any request body above ~4.5 MB, so large photos are
+// resized/compressed in the browser *before* upload. This lets an admin upload a
+// photo of practically any size (a 15 MB phone photo becomes ~400 KB) and keeps
+// the website fast. The server still enforces its own limits as a backstop.
+
+let uploadConfig = {
+    maxUploadBytes: 100 * 1024 * 1024,
+    maxImageDimension: 2000,
+    blobEnabled: false
+};
+
+async function loadUploadConfig() {
+    try {
+        // Static per-deployment limits - cache for 10 minutes.
+        uploadConfig = await swrFetch('/admin/api/upload-config', { staleTime: 600000 });
+    } catch (e) {
+        // Keep permissive defaults - the server enforces the real limits.
+    }
+}
+
+// Parse an upload response defensively. Server/proxy errors often come back as
+// HTML (Flask's "Internal Server Error" page, a CDN error page, ...), and a bare
+// `res.json()` would throw "Unexpected token '<'" and hide the real message.
+// Returns { ...payload } on success, or at least { error: '...' } on failure.
+async function readJsonResponse(res) {
+    const text = await res.text();
+    try {
+        const parsed = JSON.parse(text);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch (e) {
+        const snippet = (text || '')
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 160);
+        const status = `HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}`;
+        return {
+            error: snippet
+                ? `${status} - ${snippet}`
+                : `${status} - the server returned a non-JSON response.`
+        };
+    }
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function decodableImageType(type) {
+    return /^image\/(jpe?g|png|webp|bmp|avif)$/i.test(type || '');
+}
+
+// Shrink a raster image in the browser. Returns a File, or the original file if
+// it is already small / the browser cannot decode it (e.g. HEIC in Chrome).
+async function resizeImageFile(file) {
+    const maxDim = uploadConfig.maxImageDimension || 2000;
+    let bitmap;
+    try {
+        try {
+            // Honour EXIF rotation where the browser supports it
+            bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+        } catch (e) {
+            bitmap = await createImageBitmap(file);
+        }
+    } catch (e) {
+        return file;
+    }
+
+    try {
+        const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+        const width = Math.max(1, Math.round(bitmap.width * scale));
+        const height = Math.max(1, Math.round(bitmap.height * scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+        if (bitmap.close) bitmap.close();
+
+        // WebP keeps transparency and compresses well; JPEG is the fallback.
+        let out = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.85));
+        let ext = 'webp';
+        if (!out) {
+            out = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.85));
+            ext = 'jpg';
+        }
+        if (!out || out.size >= file.size) return file; // no benefit - keep original
+
+        const base = (file.name || 'image').replace(/\.[^.]+$/, '') || 'image';
+        return new File([out], base + '.' + ext, { type: out.type });
+    } catch (e) {
+        return file;
+    }
+}
+
+// Prepare a picked file for upload: shrink images, then check the size limit.
+// Throws an Error with a readable message when the file cannot be sent.
+async function prepareUploadFile(file) {
+    const name = (file.name || '').toLowerCase();
+    const type = (file.type || '').toLowerCase();
+    let out = file;
+
+    // SVG is vector and GIF may be animated - never rasterise those.
+    if (decodableImageType(type) && !/\.(svg|gif)$/.test(name) && file.size > 300 * 1024) {
+        out = await resizeImageFile(file);
+    }
+
+    if (out.size > uploadConfig.maxUploadBytes) {
+        throw new Error(
+            'File is ' + formatBytes(out.size) + ' but this server allows up to ' +
+            formatBytes(uploadConfig.maxUploadBytes) + ' per upload. Please use a smaller file.'
+        );
+    }
+    return out;
+}
+
+// ==================== IMAGE UPLOAD ====================
+
+async function handleVideoUpload(input, urlFieldId) {
+    const file = input.files[0];
+    if (!file) return;
+
+    let uploadFile;
+    try {
+        uploadFile = await prepareUploadFile(file);
+    } catch (e) {
+        showToast(e.message, 'error');
+        input.value = '';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadFile, uploadFile.name);
+
+    try {
+        const res = await fetch('/admin/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await readJsonResponse(res);
+        if (!res.ok) {
+            throw new Error(data.error || 'Upload failed');
+        }
+        document.getElementById(urlFieldId).value = data.url;
+        showToast('Video uploaded successfully!');
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+function addGradeRow(name = '', price = '') {
+    const container = document.getElementById('gradesContainer');
+    const row = document.createElement('div');
+    row.className = 'grade-row';
+    row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 8px;';
+    row.innerHTML = `
+        <input type="text" class="grade-name" placeholder="Grade name (e.g. Premium)" style="flex: 1;" value="${name}">
+        <input type="text" class="grade-price" placeholder="Price (e.g. ₹1,500)" style="flex: 1;" value="${price}">
+        <button type="button" class="btn-sm btn-sm-delete" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+    `;
+    container.appendChild(row);
+}
+
+function getGradesFromForm() {
+    const grades = [];
+    document.querySelectorAll('.grade-row').forEach(row => {
+        const name = row.querySelector('.grade-name').value.trim();
+        const price = row.querySelector('.grade-price').value.trim();
+        if (name) grades.push({ name, price });
+    });
+    return grades;
+}
+
+function setGradesInForm(grades) {
+    const container = document.getElementById('gradesContainer');
+    container.innerHTML = '';
+    if (grades && grades.length) {
+        grades.forEach(g => addGradeRow(g.name, g.price));
+    } else {
+        addGradeRow();
+    }
+}
+
+async function handleImageUpload(input, urlFieldId, previewId) {
+    const file = input.files[0];
+    if (!file) return;
+
+    let uploadFile;
+    try {
+        uploadFile = await prepareUploadFile(file);
+    } catch (e) {
+        showToast(e.message, 'error');
+        input.value = '';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadFile, uploadFile.name);
+
+    try {
+        const res = await fetch('/admin/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await readJsonResponse(res);
+        if (!res.ok) {
+            throw new Error(data.error || 'Upload failed');
+        }
+
+        // Set the URL field
+        document.getElementById(urlFieldId).value = data.url;
+
+        // Show preview
+        const preview = document.getElementById(previewId);
+        if (preview) {
+            const img = preview.querySelector('img');
+            img.src = data.url;
+            preview.style.display = 'block';
+        }
+
+        showToast('Image uploaded successfully!');
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+// ==================== PRODUCTS MANAGEMENT ====================
+
+async function loadProducts() {
+    const tbody = document.getElementById('productsTableBody');
+    try {
+        // Paint instantly from cache when available; otherwise show shimmering
+        // skeleton rows while the first fetch runs.
+        const cached = (jz && jz.peek) ? jz.peek('/admin/api/products', { staleTime: 20000 }) : null;
+        if (cached && Array.isArray(cached) && cached.length) {
+            applyProducts(cached);
+        } else if (tbody && !tbody.childElementCount) {
+            tbody.innerHTML = (jz && jz.skeletonRows) ? jz.skeletonRows(6, 10) : '';
+        }
+
+        const data = await swrFetch('/admin/api/products', {
+            staleTime: 20000,
+            onUpdate: applyProducts // background refresh re-renders the table
+        });
+        applyProducts(data);
+    } catch (e) {
+        if (tbody && tbody.childElementCount && !(currentProducts && currentProducts.length)) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #dc3545;">Failed to load products. Please refresh.</td></tr>';
+        }
+        showToast('Failed to load products', 'error');
+    }
+}
+
+function applyProducts(data) {
+    currentProducts = Array.isArray(data) ? data : [];
+    renderProductsTable();
+    updateDashboardStats();
+}
+
+function getStockStatus(stock) {
+    stock = parseInt(stock) || 0;
+    if (stock <= 0) return { text: 'Out of Stock', class: 'stock-out' };
+    if (stock <= 20) return { text: 'Low Stock', class: 'stock-low' };
+    return { text: 'In Stock', class: 'stock-in' };
+}
+
+function renderProductsTable() {
+    const tbody = document.getElementById('productsTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!currentProducts.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: #8a7362;">No products found. Click "Add Product" to create one.</td></tr>';
+        return;
+    }
+
+    currentProducts.forEach(p => {
+        const status = getStockStatus(p.stock);
+        const image = p.image ? `<img src="${p.image}" alt="${p.name_en}" onerror="this.style.display='none'">` : '<span style="font-size: 1.5rem;">📦</span>';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${image}</td>
+            <td><strong>${p.name_en || ''}</strong></td>
+            <td>${p.name_hi || ''}</td>
+            <td>${p.sku || '-'}</td>
+            <td><strong style="color: #b8860b;">${p.price || '-'}</strong></td>
+            <td style="text-decoration: line-through; color: #999;">${p.old_price || '-'}</td>
+            <td>${p.weight || '-'}</td>
+            <td><strong>${p.stock}</strong></td>
+            <td><span class="stock-badge ${status.class}">${status.text}</span></td>
+            <td>
+                <div class="table-actions">
+                    <button class="btn-sm btn-sm-stock" onclick="openQuickStock(${p.id})"><i class="fas fa-boxes"></i> Stock</button>
+                    <button class="btn-sm btn-sm-edit" onclick="openProductModal(${p.id})"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="btn-sm btn-sm-delete" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function openProductModal(id = null) {
+    editingProductId = id;
+    document.getElementById('modalTitle').textContent = id ? 'Edit Product' : 'Add Product';
+
+    // Reset form
+    document.getElementById('pNameEn').value = '';
+    document.getElementById('pNameHi').value = '';
+    document.getElementById('pPrice').value = '';
+    document.getElementById('pOldPrice').value = '';
+    document.getElementById('pWeight').value = '';
+    document.getElementById('pSku').value = '';
+    document.getElementById('pStock').value = '';
+    document.getElementById('pStatus').value = 'in_stock';
+    document.getElementById('pDescEn').value = '';
+    document.getElementById('pDescHi').value = '';
+    document.getElementById('pImageUrl').value = '';
+    document.getElementById('pImageInput').value = '';
+    document.getElementById('pImagePreview').style.display = 'none';
+    document.getElementById('pVideoUrl').value = '';
+    document.getElementById('pVideoInput').value = '';
+    setGradesInForm([]);
+
+    // Load product data if editing
+    if (id) {
+        const product = currentProducts.find(p => p.id === id);
+        if (product) {
+            document.getElementById('pNameEn').value = product.name_en || '';
+            document.getElementById('pNameHi').value = product.name_hi || '';
+            document.getElementById('pPrice').value = product.price || '';
+            document.getElementById('pOldPrice').value = product.old_price || '';
+            document.getElementById('pWeight').value = product.weight || '';
+            document.getElementById('pSku').value = product.sku || '';
+            document.getElementById('pStock').value = product.stock || 0;
+            document.getElementById('pDescEn').value = product.description_en || '';
+            document.getElementById('pDescHi').value = product.description_hi || '';
+            document.getElementById('pImageUrl').value = product.image || '';
+            document.getElementById('pVideoUrl').value = product.video || '';
+
+            // Load grades safely (whether array or JSON string)
+            let grades = [];
+            if (Array.isArray(product.grades)) {
+                grades = product.grades;
+            } else if (typeof product.grades === 'string' && product.grades.trim()) {
+                try { grades = JSON.parse(product.grades); } catch(e) { grades = []; }
+            }
+            setGradesInForm(grades);
+
+            const status = getStockStatus(product.stock);
+            document.getElementById('pStatus').value = status.class.replace('stock-', '');
+
+            if (product.image) {
+                const preview = document.getElementById('pImagePreview');
+                preview.querySelector('img').src = product.image;
+                preview.style.display = 'block';
+            }
+        }
+    }
+
+    openModal('productModal');
+}
+
+async function saveProduct(btn = null) {
+    const nameEn = document.getElementById('pNameEn').value.trim();
+    const nameHi = document.getElementById('pNameHi').value.trim();
+    const stock = document.getElementById('pStock').value;
+    const statusSel = document.getElementById('pStatus').value;
+
+    if (!nameEn || !nameHi) {
+        showToast('Name in both English and Hindi is required!', 'error');
+        return;
+    }
+
+    // Validate stock
+    let stockNum = parseInt(stock) || 0;
+
+    const data = {
+        name_en: nameEn,
+        name_hi: nameHi,
+        price: document.getElementById('pPrice').value.trim(),
+        old_price: document.getElementById('pOldPrice').value.trim(),
+        weight: document.getElementById('pWeight').value.trim(),
+        sku: document.getElementById('pSku').value.trim(),
+        stock: stockNum,
+        description_en: document.getElementById('pDescEn').value.trim(),
+        description_hi: document.getElementById('pDescHi').value.trim(),
+        image: document.getElementById('pImageUrl').value.trim(),
+        video: document.getElementById('pVideoUrl').value.trim(),
+        grades: getGradesFromForm()
+    };
+
+    jzBusy(btn, true);
+    try {
+        let res;
+        if (editingProductId) {
+            res = await fetch(`/admin/api/products/${editingProductId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } else {
+            res = await fetch('/admin/api/products', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(result.error || 'Failed to save product');
+        }
+
+        // Invalidate cached product lists (admin + public storefront) so the
+        // fresh data is fetched on the next render.
+        jzMutate('/admin/api/products');
+        jzMutate('/api/products');
+        showToast(editingProductId ? 'Product updated successfully!' : 'Product added successfully!');
+        closeModal('productModal');
+        loadProducts();
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        jzBusy(btn, false);
+    }
+}
+
+async function deleteProduct(id) {
+    if (!confirm('Are you sure you want to delete this product?')) return;
+
+    try {
+        const res = await fetch(`/admin/api/products/${id}`, {
+            method: 'DELETE'
+        });
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(result.error || 'Failed to delete product');
+        }
+        jzMutate('/admin/api/products');
+        jzMutate('/api/products');
+        showToast('Product deleted!');
+        loadProducts();
+    } catch (e) {
+        showToast(e.message, 'error');
+    }
+}
+
+// ==================== QUICK STOCK UPDATE ====================
+
+function openQuickStock(id) {
+    quickStockProductId = id;
+    const product = currentProducts.find(p => p.id === id);
+    if (!product) return;
+
+    document.getElementById('stockModalProductName').textContent = product.name_en || '';
+    document.getElementById('stockCurrent').value = product.stock || 0;
+    document.getElementById('stockChange').value = '';
+    document.getElementById('stockNew').value = '';
+    document.getElementById('stockRate').value = product.price || '';
+
+    openModal('stockModal');
+}
+
+async function saveQuickStock(btn = null) {
+    if (!quickStockProductId) return;
+    const product = currentProducts.find(p => p.id === quickStockProductId);
+    if (!product) return;
+
+    const currentStock = parseInt(document.getElementById('stockCurrent').value) || 0;
+    const change = parseInt(document.getElementById('stockChange').value) || 0;
+    const newVal = document.getElementById('stockNew').value;
+    const rate = document.getElementById('stockRate').value;
+
+    // Calculate final stock: if new value provided use it, else current + change
+    let finalStock;
+    if (newVal !== '') {
+        finalStock = parseInt(newVal) || 0;
+    } else {
+        finalStock = currentStock + change;
+    }
+    if (finalStock < 0) finalStock = 0;
+
+    const data = {
+        name_en: product.name_en || '',
+        name_hi: product.name_hi || '',
+        price: rate || product.price || '',
+        old_price: product.old_price || '',
+        weight: product.weight || '',
+        sku: product.sku || '',
+        stock: finalStock,
+        description_en: product.description_en || '',
+        description_hi: product.description_hi || '',
+        image: product.image || '',
+        video: product.video || '',
+        grades: product.grades || '[]'
+    };
+
+    jzBusy(btn, true);
+    try {
+        const res = await fetch(`/admin/api/products/${quickStockProductId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(result.error || 'Failed to update stock');
+        }
+        jzMutate('/admin/api/products');
+        jzMutate('/api/products');
+        showToast('Stock updated successfully!');
+        closeModal('stockModal');
+        loadProducts();
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        jzBusy(btn, false);
+    }
+}
+
+// ==================== ORDER ALERTS & LIVE POLLING ====================
+
+let lastKnownOrderCount = null;
+let newOrderAlertEnabled = true;
+
+// Play a subtle chime when a new order arrives
+function playOrderChime() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+        gain.gain.value = 0.15;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.3);
+    } catch (e) {
+        // Audio not supported - ignore
+    }
+}
+
+// Highlight a new order row / card with a visual pulse
+function flashNewOrder(orderId) {
+    const row = document.querySelector(`[data-order-id="${orderId}"]`);
+    const card = document.querySelector(`[data-order-card-id="${orderId}"]`);
+    const el = row || card;
+    if (el) {
+        el.classList.add('new-order-flash');
+        setTimeout(() => el.classList.remove('new-order-flash'), 3000);
+    }
+}
+
+// Poll /admin/api/orders every 10 seconds to detect new/unfulfilled orders
+async function pollOrdersForAlerts() {
+    // Only run on pages that have an orders table or an orders alert badge
+    if (!document.getElementById('ordersTableBody') && !document.getElementById('newOrdersBadge')) return;
+
+    try {
+        const res = await fetch('/admin/api/orders');
+        if (!res.ok || res.status === 302) return; // Not logged in or error
+        const orders = await res.json();
+        const pendingCount = orders.filter(o => String(o.status || '').startsWith('pending')).length;
+
+        // Update the "New Orders" badge if present
+        const badge = document.getElementById('newOrdersBadge');
+        if (badge) {
+            badge.textContent = pendingCount;
+            badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+        }
+
+        // Detect new orders (first poll establishes baseline, subsequent polls alert)
+        if (lastKnownOrderCount !== null) {
+            if (orders.length > lastKnownOrderCount) {
+                const newOnes = orders.slice(0, orders.length - lastKnownOrderCount);
+                newOnes.forEach(o => {
+                    if (String(o.status || '').startsWith('pending')) {
+                        flashNewOrder(o.id);
+                        if (newOrderAlertEnabled) playOrderChime();
+                        showToast('🔔 New order #' + o.id + ' received!', 'success');
+                    }
+                });
+            }
+        }
+        lastKnownOrderCount = orders.length;
+    } catch (e) {
+        // Silent - polling continues
+    }
+}
+
+// ==================== DASHBOARD STATS ====================
+
+function updateDashboardStats() {
+    const statStock = document.getElementById('statStock');
+    const statLowStock = document.getElementById('statLowStock');
+    const statProducts = document.getElementById('statProducts');
+
+    if (statProducts) statProducts.textContent = currentProducts.length;
+
+    const totalStock = currentProducts.reduce((sum, p) => sum + (parseInt(p.stock) || 0), 0);
+    if (statStock) statStock.textContent = totalStock;
+
+    const lowStockCount = currentProducts.filter(p => (parseInt(p.stock) || 0) <= 20).length;
+    if (statLowStock) statLowStock.textContent = lowStockCount;
+}
+
+// ==================== SETTINGS MANAGEMENT ====================
+
+async function loadSettings(forceFresh = false) {
+    const url = '/admin/api/site';
+    const skeleton = document.getElementById('settingsSkeleton');
+
+    try {
+        // Cached paint: the settings form fills instantly when a cached copy
+        // exists; only a truly cold load shows the shimmering skeleton.
+        if (forceFresh) jzMutate(url);
+        const cached = (jz && jz.peek) ? jz.peek(url, { staleTime: 30000 }) : null;
+        if (skeleton) skeleton.hidden = !!cached;
+
+        const data = await swrFetch(url, {
+            staleTime: 30000,
+            onUpdate: applySettings // background refresh keeps previews current
+        });
+        applySettings(data);
+    } catch (e) {
+        showToast('Failed to load settings', 'error');
+    } finally {
+        if (skeleton) skeleton.hidden = true;
+    }
+}
+
+function applySettings(result) {
+    // The API returns {success: true, data: {...}} - read the nested data object!
+    // Only fall back to result if data is missing entirely (not just empty)
+    const data = (result && result.data) ? result.data : result;
+
+    // Shop info
+    setVal('sShopNameEn', data.shop_name_en);
+    setVal('sShopNameHi', data.shop_name_hi);
+    setVal('sTaglineEn', data.tagline_en);
+    setVal('sTaglineHi', data.tagline_hi);
+    setVal('sAboutEn', data.about_en);
+    setVal('sAboutHi', data.about_hi);
+
+    // Contact
+    setVal('sAddressEn', data.address_en);
+    setVal('sAddressHi', data.address_hi);
+    setVal('sPhone', data.phone);
+    setVal('sWhatsapp', data.whatsapp);
+    setVal('sEmail', data.email);
+    setVal('sHoursEn', data.hours_en);
+    setVal('sHoursHi', data.hours_hi);
+
+    // Logo
+    setVal('sLogoUrl', data.logo || '');
+    if (data.logo) {
+        const preview = document.getElementById('logoPreview') || document.getElementById('sLogoPreview');
+        if (preview) {
+            preview.querySelector('img').src = data.logo;
+            preview.style.display = 'block';
+        }
+    }
+
+    // Discount & Payment
+    // Use global_discount_percent (canonical) with fallback to legacy global_discount
+    setVal('sGlobalDiscount', data.global_discount_percent || data.global_discount || '0');
+    setVal('sUpiId', data.upi_id || '');
+    setVal('sGstin', data.gstin || '');
+    setVal('sTaxPercent', data.tax_percent || '');
+    setVal('sShippingCharge', data.shipping_charge || '50');
+    setVal('sFreeShippingMin', data.free_shipping_min || '1000');
+
+    // Gateway & OTP settings
+    setVal('sRazorpayKeyId', data.razorpay_key_id || '');
+    setVal('sRazorpayKeySecret', data.razorpay_key_secret || '');
+    setVal('sTwilioAccountSid', data.twilio_account_sid || '');
+    setVal('sTwilioAuthToken', data.twilio_auth_token || '');
+    setVal('sTwilioVerifyServiceSid', data.twilio_verify_service_sid || '');
+    setVal('sSmtpHost', data.smtp_host || 'smtp.gmail.com');
+    setVal('sSmtpPort', data.smtp_port || '587');
+    setVal('sSmtpUser', data.smtp_user || 'info@jainzee.in');
+    setVal('sSmtpPass', data.smtp_pass || '');
+    setVal('sSmtpFrom', data.smtp_from || 'info@jainzee.in');
+
+    // UPI QR Code preview (Base64 permanent storage)
+    if (data.upi_qr_data) {
+        const qrPreview = document.getElementById('upiQrPreview');
+        if (qrPreview) {
+            qrPreview.querySelector('img').src = data.upi_qr_data;
+            qrPreview.style.display = 'block';
+        }
+    }
+}
+
+function setVal(id, value) {
+    const el = document.getElementById(id);
+    // NEVER overwrite with undefined - use empty string fallback safely
+    if (el && value !== undefined && value !== null) el.value = value || '';
+}
+
+async function saveSettings(btn = null) {
+    // Guard: if the form contains NO data at all (e.g. failed loadSettings), abort - never wipe settings
+    const shopNameEn = document.getElementById('sShopNameEn');
+    if (!shopNameEn || shopNameEn.value.trim() === '') {
+        showToast('❌ Settings form is empty. Please reload the page first - save ABORTED to protect your data.', 'error');
+        await loadSettings(true);
+        return;
+    }
+
+    const data = {
+        shop_name_en: shopNameEn.value.trim(),
+        shop_name_hi: document.getElementById('sShopNameHi').value.trim(),
+        tagline_en: document.getElementById('sTaglineEn').value.trim(),
+        tagline_hi: document.getElementById('sTaglineHi').value.trim(),
+        about_en: document.getElementById('sAboutEn').value.trim(),
+        about_hi: document.getElementById('sAboutHi').value.trim(),
+        address_en: document.getElementById('sAddressEn').value.trim(),
+        address_hi: document.getElementById('sAddressHi').value.trim(),
+        phone: document.getElementById('sPhone').value.trim(),
+        whatsapp: document.getElementById('sWhatsapp').value.trim(),
+        email: document.getElementById('sEmail').value.trim(),
+        hours_en: document.getElementById('sHoursEn').value.trim(),
+        hours_hi: document.getElementById('sHoursHi').value.trim(),
+        logo: document.getElementById('sLogoUrl').value.trim(),
+        global_discount: document.getElementById('sGlobalDiscount').value.trim(),
+        global_discount_percent: document.getElementById('sGlobalDiscount').value.trim(),
+        upi_id: document.getElementById('sUpiId').value.trim(),
+        gstin: document.getElementById('sGstin') ? document.getElementById('sGstin').value.trim() : '',
+        tax_percent: document.getElementById('sTaxPercent') ? document.getElementById('sTaxPercent').value.trim() : '',
+        shipping_charge: document.getElementById('sShippingCharge') ? document.getElementById('sShippingCharge').value.trim() : '50',
+        free_shipping_min: document.getElementById('sFreeShippingMin') ? document.getElementById('sFreeShippingMin').value.trim() : '1000',
+        razorpay_key_id: document.getElementById('sRazorpayKeyId') ? document.getElementById('sRazorpayKeyId').value.trim() : '',
+        razorpay_key_secret: document.getElementById('sRazorpayKeySecret') ? document.getElementById('sRazorpayKeySecret').value.trim() : '',
+        twilio_account_sid: document.getElementById('sTwilioAccountSid') ? document.getElementById('sTwilioAccountSid').value.trim() : '',
+        twilio_auth_token: document.getElementById('sTwilioAuthToken') ? document.getElementById('sTwilioAuthToken').value.trim() : '',
+        twilio_verify_service_sid: document.getElementById('sTwilioVerifyServiceSid') ? document.getElementById('sTwilioVerifyServiceSid').value.trim() : '',
+        smtp_host: document.getElementById('sSmtpHost') ? document.getElementById('sSmtpHost').value.trim() : 'smtp.gmail.com',
+        smtp_port: document.getElementById('sSmtpPort') ? document.getElementById('sSmtpPort').value.trim() : '587',
+        smtp_user: document.getElementById('sSmtpUser') ? document.getElementById('sSmtpUser').value.trim() : 'info@jainzee.in',
+        smtp_pass: document.getElementById('sSmtpPass') ? document.getElementById('sSmtpPass').value.trim() : '',
+        smtp_from: document.getElementById('sSmtpFrom') ? document.getElementById('sSmtpFrom').value.trim() : 'info@jainzee.in'
+    };
+
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(data));
+    
+    // Append QR code file if selected
+    const qrInput = document.getElementById('upiQrInput');
+    if (qrInput.files && qrInput.files[0]) {
+        formData.append('upi_qr_code', qrInput.files[0]);
+    }
+
+    jzBusy(btn, true);
+    try {
+        const res = await fetch('/admin/api/site', {
+            method: 'POST',
+            body: formData
+            // NO Content-Type header - browser sets it automatically for FormData
+        });
+        
+        // Check if response is OK before parsing JSON
+        if (!res.ok) {
+            const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(errorData.error || `HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        const result = await res.json();
+        if (result.success) {
+            // Invalidate BOTH the admin settings cache and the public site
+            // cache so every page shows the new values immediately.
+            jzMutate('/admin/api/site');
+            jzMutate('/api/site');
+            showToast('✅ Settings saved successfully!', 'success');
+            
+            // Clear QR input after successful upload
+            if (qrInput.files && qrInput.files[0]) {
+                qrInput.value = '';
+            }
+            
+            // Reload settings to show updated preview
+            await loadSettings(true);
+        } else {
+            throw new Error(result.error || 'Failed to save settings');
+        }
+    } catch (e) {
+        showToast('❌ ' + e.message, 'error');
+        console.error('Save settings error:', e);
+    } finally {
+        jzBusy(btn, false);
+    }
+}
+
+// ==================== CHANGE PASSWORD ====================
+
+async function changePassword(btn = null) {
+    const oldPw = document.getElementById('sOldPassword').value;
+    const newPw = document.getElementById('sNewPassword').value;
+
+    if (!oldPw || !newPw) {
+        showToast('Please fill both password fields', 'error');
+        return;
+    }
+    if (newPw.length < 6) {
+        showToast('New password must be at least 6 characters', 'error');
+        return;
+    }
+
+    jzBusy(btn, true);
+    try {
+        const res = await fetch('/admin/api/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+        });
+        const result = await res.json();
+        if (!res.ok) {
+            throw new Error(result.error || 'Failed to change password');
+        }
+        showToast('Password changed successfully!');
+        document.getElementById('sOldPassword').value = '';
+        document.getElementById('sNewPassword').value = '';
+    } catch (e) {
+        showToast(e.message, 'error');
+    } finally {
+        jzBusy(btn, false);
+    }
+}
+
+// ==================== MAIN PAGE VIDEO UPLOAD ====================
+
+async function uploadMainVideo(file) {
+    const btn = document.getElementById('uploadVideoBtn');
+    const msg = document.getElementById('videoUploadMsg');
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = 'Uploading video... This may take a few seconds for large files.';
+
+    try {
+        file = await prepareUploadFile(file);
+    } catch (e) {
+        if (msg) {
+            msg.innerHTML = '<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> ' + e.message + '</span>';
+        }
+        showToast(e.message, 'error');
+        if (btn) btn.disabled = false;
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    try {
+        const res = await fetch('/admin/api/upload-main-video', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await readJsonResponse(res);
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+        if (msg) {
+            msg.innerHTML = '<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Video uploaded successfully! It will now show on the main page.</span>';
+        }
+        showToast('Main page video updated successfully!');
+    } catch (e) {
+        if (msg) {
+            msg.innerHTML = '<span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Upload failed: ' + e.message + '</span>';
+        }
+        showToast('Upload failed: ' + e.message, 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// ==================== INIT ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Fetch upload limits (Vercel body limit, allowed types, ...)
+    loadUploadConfig();
+
+    // Detect current page
+    const hasProductsTable = document.getElementById('productsTableBody');
+    const hasSettingsForm = document.getElementById('sShopNameEn');
+
+    if (hasProductsTable) {
+        loadProducts();
+    }
+
+    if (hasSettingsForm) {
+        loadSettings();
+        loadGeneralMedia();
+    }
+
+    // Main video upload form handler
+    const mainVideoForm = document.getElementById('mainVideoUploadForm');
+    if (mainVideoForm) {
+        mainVideoForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('mainVideoInput');
+            if (!fileInput.files || !fileInput.files[0]) {
+                showToast('Please select a video file first!', 'error');
+                return;
+            }
+            uploadMainVideo(fileInput.files[0]);
+        });
+    }
+
+    // Start order alert polling (every 10 seconds) on admin dashboard & orders pages
+    if (document.getElementById('ordersTableBody') || document.getElementById('newOrdersBadge')) {
+        pollOrdersForAlerts(); // First poll establishes baseline
+        setInterval(pollOrdersForAlerts, 10000);
+    }
+});
+
+// ==================== UPI QR CODE UPLOAD ====================
+
+async function handleUpiQrUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const preview = document.getElementById('upiQrPreview');
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        preview.querySelector('img').src = e.target.result;
+        preview.style.display = 'block';
+    };
+    
+    reader.readAsDataURL(file);
+}
+
+// ==================== GENERAL MEDIA (Factory & Company) ====================
+
+async function uploadGeneralMedia(btn = null) {
+    const title = document.getElementById('generalMediaTitle').value;
+    const category = document.getElementById('generalMediaCategory').value;
+    const fileInput = document.getElementById('generalMediaFileInput');
+    const msgDiv = document.getElementById('generalMediaUploadMsg');
+
+    if (!fileInput.files || !fileInput.files[0]) {
+        msgDiv.innerHTML = '<span style="color: #dc3545;">Please select a file first.</span>';
+        return;
+    }
+
+    let uploadFile;
+    try {
+        uploadFile = await prepareUploadFile(fileInput.files[0]);
+    } catch (e) {
+        msgDiv.innerHTML = '<span style="color: #dc3545;">❌ ' + e.message + '</span>';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadFile, uploadFile.name);
+    formData.append('title', title);
+    formData.append('category', category);
+
+    msgDiv.innerHTML = '<span style="color: #007bff;"><i class="fas fa-spinner fa-spin"></i> Uploading...</span>';
+    jzBusy(btn, true);
+
+    try {
+        const res = await fetch('/admin/api/general-media', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        });
+        const data = await readJsonResponse(res);
+        if (res.ok) {
+            msgDiv.innerHTML = '<span style="color: #28a745;">✓ Media uploaded successfully!</span>';
+            fileInput.value = '';
+            document.getElementById('generalMediaTitle').value = '';
+            jzMutate('/admin/api/general-media');
+            jzMutate('/api/general-media');
+            loadGeneralMedia();
+        } else {
+            msgDiv.innerHTML = '<span style="color: #dc3545;">❌ ' + (data.error || 'Upload failed') + '</span>';
+        }
+    } catch(err) {
+        msgDiv.innerHTML = '<span style="color: #dc3545;">❌ Upload failed. Server issue.</span>';
+    } finally {
+        jzBusy(btn, false);
+    }
+}
+
+async function loadGeneralMedia() {
+    const mediaList = document.getElementById('generalMediaList');
+    if (!mediaList) return;
+    
+    try {
+        const cached = (jz && jz.peek) ? jz.peek('/admin/api/general-media', { staleTime: 20000 }) : null;
+        if (cached && Array.isArray(cached) && cached.length) {
+            renderGeneralMedia(cached);
+            return;
+        }
+        mediaList.innerHTML = (jz && jz.skeletonLines)
+            ? jz.skeletonLines(4)
+            : '<p style="color: var(--text-light);">Loading...</p>';
+        const media = await swrFetch('/admin/api/general-media', {
+            staleTime: 20000,
+            onUpdate: renderGeneralMedia
+        });
+        renderGeneralMedia(media);
+    } catch(e) {
+        mediaList.innerHTML = '<p style="color: #dc3545;">Failed to load media.</p>';
+    }
+}
+
+function renderGeneralMedia(media) {
+    const mediaList = document.getElementById('generalMediaList');
+    if (!mediaList) return;
+    media = Array.isArray(media) ? media : [];
+    if (!media.length) {
+        mediaList.innerHTML = '<p style="color: var(--text-light);">No media uploaded yet.</p>';
+        return;
+    }
+    mediaList.innerHTML = '';
+    media.forEach(m => {
+        const div = document.createElement('div');
+        div.style.cssText = 'position: relative; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,215,0,0.2);';
+        if (m.type === 'video') {
+            div.innerHTML = '<video controls style="width:100%; height:150px; object-fit:cover;"><source src="' + m.url + '" type="video/mp4"></video>';
+        } else {
+            div.innerHTML = '<img src="' + m.url + '" loading="lazy" decoding="async" style="width:100%; height:150px; object-fit:cover;">';
+        }
+        const delBtn = document.createElement('button');
+        delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        delBtn.onclick = () => deleteGeneralMedia(m.id);
+        delBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: rgba(220,53,69,0.8); color: white; border: none; width: 25px; height: 25px; border-radius: 50%; cursor: pointer;';
+        div.appendChild(delBtn);
+        mediaList.appendChild(div);
+    });
+}
+
+async function deleteGeneralMedia(mediaId) {
+    if (!confirm('Delete this media?')) return;
+    try {
+        await fetch('/admin/api/general-media/' + mediaId, { method: 'DELETE' });
+        jzMutate('/admin/api/general-media');
+        jzMutate('/api/general-media');
+        loadGeneralMedia();
+    } catch(e) {}
+}

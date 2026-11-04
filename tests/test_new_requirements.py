@@ -151,3 +151,45 @@ def test_other_products_pricing(client):
     k_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Kishmish', [])}
     assert k_grades.get('1kg') == 549
     assert k_grades.get('500g') == 279
+
+
+def test_api_products_returns_all_16_cashew_grades_and_all_7_products(client):
+    """Verify public /api/products returns all 7 canonical products and Cashew has all 16 grades."""
+    app, c = client
+    res = c.get('/api/products')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert len(data) >= 7
+
+    names = [p['name_en'] for p in data]
+    assert any('Cashew' in n for n in names)
+    assert 'Makhana' in names
+    assert 'Badam' in names
+    assert 'Akhrot' in names
+    assert 'Kishmish' in names
+
+    cashew = next(p for p in data if 'Cashew' in p['name_en'])
+    grades = json.loads(cashew['grades']) if isinstance(cashew['grades'], str) else cashew['grades']
+    assert len(grades) == 16, f"Expected 16 cashew grades, got {len(grades)}"
+
+def test_admin_can_save_product_without_csrf_blocking(client):
+    """Verify that logged-in admin can update products via PUT /admin/api/products/<id> successfully."""
+    app, c = client
+    with c.session_transaction() as sess:
+        sess['admin_logged_in'] = True
+        sess['admin_user'] = 'admin'
+
+    conn = app.get_db()
+    first_prod = conn.execute("SELECT id FROM products LIMIT 1").fetchone()
+    conn.close()
+    pid = first_prod['id']
+
+    res = c.put(f'/admin/api/products/{pid}', json={
+        'name_en': 'Updated Product Test',
+        'name_hi': 'टेस्ट प्रोडक्ट',
+        'price': '₹999',
+        'stock': 123,
+        'grades': [{'name': '1kg', 'price': '₹999'}]
+    })
+    assert res.status_code == 200
+    assert res.get_json().get('success') is True

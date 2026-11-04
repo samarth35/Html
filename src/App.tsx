@@ -23,6 +23,8 @@ import { AuditAndDeployModal } from './components/AuditAndDeployModal';
 import { DiwaliSpecialPopup } from './components/DiwaliSpecialPopup';
 import { OrderSuccessPopup } from './components/OrderSuccessPopup';
 import { Footer } from './components/Footer';
+import { ShopTourModal } from './components/ShopTourModal';
+import { ShopTourSection } from './components/ShopTourSection';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => {
@@ -32,7 +34,7 @@ export default function App() {
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('jainzee_products_v8');
+      const saved = localStorage.getItem('jainzee_products_v12');
       if (saved) return JSON.parse(saved);
     } catch {}
     return INITIAL_PRODUCTS;
@@ -82,6 +84,7 @@ export default function App() {
   const [trackerModalOpen, setTrackerModalOpen] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [diwaliPopupOpen, setDiwaliPopupOpen] = useState(true);
+  const [shopTourModalOpen, setShopTourModalOpen] = useState(false);
   const [justPlacedOrder, setJustPlacedOrder] = useState<Order | null>(null);
   const [selectedProductModal, setSelectedProductModal] = useState<{
     product: Product;
@@ -93,6 +96,15 @@ export default function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
   };
+
+  useEffect(() => {
+    // Purge old cached product versions to ensure live ads and visitors see the latest 16-grade cashews and prices
+    for (let i = 1; i <= 11; i++) {
+      try {
+        localStorage.removeItem(`jainzee_products_v${i}`);
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     fetch('/api/products')
@@ -113,7 +125,24 @@ export default function App() {
               }
             } catch {}
 
-            if (parsedGrades.length === 0) {
+            const existing = INITIAL_PRODUCTS.find(
+              (p) =>
+                p.name_en.toLowerCase() === (sp.name_en || '').toLowerCase() ||
+                p.id === sp.id ||
+                p.sku.toLowerCase() === (sp.sku || '').toLowerCase()
+            );
+
+            // Cashew protection: If server has empty or incomplete grades, protect with all 16 canonical grades
+            const isCashew =
+              (sp.name_en || '').toLowerCase().includes('cashew') ||
+              (existing && existing.category === 'cashews');
+
+            if (isCashew && (parsedGrades.length < 16 || parsedGrades.length === 0)) {
+              const cashewCanon = INITIAL_PRODUCTS.find((p) => p.category === 'cashews');
+              if (cashewCanon) parsedGrades = cashewCanon.grades;
+            } else if (parsedGrades.length === 0 && existing && existing.grades && existing.grades.length > 0) {
+              parsedGrades = existing.grades;
+            } else if (parsedGrades.length === 0) {
               const basePrice = Number(String(sp.price || '').replace(/[^\d.]/g, '')) || 999;
               const oldPrice = Number(String(sp.old_price || '').replace(/[^\d.]/g, '')) || Math.round(basePrice * 1.15);
               parsedGrades = [
@@ -122,18 +151,16 @@ export default function App() {
               ];
             }
 
-            const existing = INITIAL_PRODUCTS.find((p) => p.name_en.toLowerCase() === (sp.name_en || '').toLowerCase() || p.id === sp.id);
-
             return {
               id: sp.id,
               sku: sp.sku || existing?.sku || `JZ-${sp.id}`,
-              category: (sp.category as any) || existing?.category || 'cashews',
-              categoryLabel_en: sp.weight || '1kg / 500g Pack',
-              categoryLabel_hi: sp.weight || '1kg / 500g पैक',
+              category: (sp.category as any) || existing?.category || (isCashew ? 'cashews' : 'dryfruits'),
+              categoryLabel_en: sp.weight || existing?.categoryLabel_en || '1kg / 500g Pack',
+              categoryLabel_hi: sp.weight || existing?.categoryLabel_hi || '1kg / 500g पैक',
               name_en: sp.name_en || existing?.name_en || 'Product',
               name_hi: sp.name_hi || existing?.name_hi || sp.name_en || 'उत्पाद',
-              subtitle_en: sp.weight || 'Available in 1kg & 500g packs',
-              subtitle_hi: sp.weight || '1kg और 500g पैक में उपलब्ध',
+              subtitle_en: sp.weight || existing?.subtitle_en || 'Available in 1kg & 500g packs',
+              subtitle_hi: sp.weight || existing?.subtitle_hi || '1kg और 500g पैक में उपलब्ध',
               description_en: sp.description_en || existing?.description_en || '',
               description_hi: sp.description_hi || existing?.description_hi || '',
               origin_en: 'Siyaganj, Indore',
@@ -150,8 +177,23 @@ export default function App() {
             };
           });
 
+          // Ensure canonical products like Makhana, Badam, Akhrot, Kishmish, Pistachio, Diwali Special Box are never lost
+          INITIAL_PRODUCTS.forEach((ip) => {
+            const found = mapped.some(
+              (m) =>
+                m.name_en.toLowerCase() === ip.name_en.toLowerCase() ||
+                m.sku.toLowerCase() === ip.sku.toLowerCase()
+            );
+            if (!found) {
+              mapped.push(ip);
+            }
+          });
+
           if (mapped.length > 0) {
             setProducts(mapped);
+            try {
+              localStorage.setItem('jainzee_products_v12', JSON.stringify(mapped));
+            } catch {}
           }
         }
       })
@@ -397,6 +439,7 @@ export default function App() {
         onOpenTracker={() => setTrackerModalOpen(true)}
         onOpenAdmin={() => setAdminModalOpen(true)}
         onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
+        onOpenShopTour={() => setShopTourModalOpen(true)}
       />
 
       <main className="flex-1">
@@ -414,10 +457,25 @@ export default function App() {
           onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
         />
 
+        <ShopTourSection
+          lang={lang}
+          onOpenModal={() => setShopTourModalOpen(true)}
+        />
+
         <RoasteryAndStorySection lang={lang} />
       </main>
 
-      <Footer lang={lang} onOpenAdmin={() => setAdminModalOpen(true)} />
+      <Footer
+        lang={lang}
+        onOpenAdmin={() => setAdminModalOpen(true)}
+        onOpenShopTour={() => setShopTourModalOpen(true)}
+      />
+
+      <ShopTourModal
+        isOpen={shopTourModalOpen}
+        onClose={() => setShopTourModalOpen(false)}
+        lang={lang}
+      />
 
       <DiwaliSpecialPopup
         isOpen={diwaliPopupOpen}

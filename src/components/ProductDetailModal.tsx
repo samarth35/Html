@@ -220,7 +220,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </p>
 
                   {/* Grade & Weight Selection */}
-                  {product.category === 'cashews' && product.grades.length > 2 ? (
+                  {(product.category === 'cashews' || product.name_en.toLowerCase().includes('cashew')) ? (
                     <div className="space-y-3 pt-1">
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
