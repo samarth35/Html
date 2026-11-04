@@ -765,71 +765,52 @@ def init_db():
 
 
     cur.executemany(
-        '''INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, grades)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        """INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, grades)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [
-            ('Cashew W400', 'काजू W400', '₹879', '1kg / 500g',
-             'Premium W400 cashews – whole, creamy and rich in healthy fats.',
-             'प्रीमियम W400 काजू – साबुत, मलाईदार और स्वस्थ वसा से भरपूर।', '', 100, '', 'CAS-W400',
-             '[{"name":"1kg","price":"₹879"},{"name":"500g","price":"₹499"}]'),
-
-            ('Cashew Wmix', 'काजू Wmix', '₹899', '1kg / 500g',
-             'Mixed grade premium cashews. Great value, great taste.',
-             'मिश्रित ग्रेड के प्रीमियम काजू। बेहतरीन मूल्य, बेहतरीन स्वाद।', '', 100, '', 'CAS-WMIX',
-             '[{"name":"1kg","price":"₹899"},{"name":"500g","price":"₹455"}]'),
-
-            ('Cashew W320', 'काजू W320', '₹949', '1kg / 500g',
-             'Medium-sized W320 grade cashews. Perfect for everyday snacking.',
-             'मध्यम आकार के W320 ग्रेड काजू। रोज़मर्रा के नाश्ते के लिए परफेक्ट।', '', 100, '', 'CAS-W320',
-             '[{"name":"1kg","price":"₹949"},{"name":"500g","price":"₹479"}]'),
-
-            ('Cashew W260', 'काजू W260', '₹999', '1kg / 500g',
-             'Large W260 cashews – bold flavour, premium quality.',
-             'बड़े W260 काजू – गहरा स्वाद, प्रीमियम गुणवत्ता।', '', 100, '', 'CAS-W260',
-             '[{"name":"1kg","price":"₹999"},{"name":"500g","price":"₹501"}]'),
-
-            ('Cashew W240', 'काजू W240', '₹1030', '1kg / 500g',
-             'Extra-large W240 cashews. Ideal for gifting and special occasions.',
-             'एक्स्ट्रा-लार्ज W240 काजू। उपहार और विशेष अवसरों के लिए आदर्श।', '', 100, '', 'CAS-W240',
-             '[{"name":"1kg","price":"₹1030"},{"name":"500g","price":"₹519"}]'),
-
-            ('Cashew W210', 'काजू W210', '₹1099', '1kg / 500g',
-             'Jumbo W210 cashews – the finest and largest in our range.',
-             'जम्बो W210 काजू – हमारी रेंज में सबसे बढ़िया और सबसे बड़े।', '', 100, '', 'CAS-W210',
-             '[{"name":"1kg","price":"₹1099"},{"name":"500g","price":"₹499"}]'),
-
-            ('Cashew Jk', 'काजू Jk', '₹879', '1kg / 500g',
-             'Jk grade premium cashews from Jainzee\'s trusted sources.',
-             'जैनज़ी के विश्वसनीय स्रोतों से Jk ग्रेड प्रीमियम काजू।', '', 100, '', 'CAS-JK',
-             '[{"name":"1kg","price":"₹879"},{"name":"500g","price":"₹449"}]'),
-
-            ('Cashew Jh', 'काजू Jh', '₹920', '1kg / 500g',
-             'Jh grade cashews – hand-sorted for uniform size and taste.',
-             'Jh ग्रेड काजू – एक समान आकार और स्वाद के लिए हाथ से छाँटे गए।', '', 100, '', 'CAS-JH',
-             '[{"name":"1kg","price":"₹920"},{"name":"500g","price":"₹469"}]'),
+            ('Premium Cashew (Kaju)', 'प्रीमियम काजू', '₹879', '1kg / 500g',
+             'Large, creamy and hygienically graded premium whole cashews in all 8 export & wholesale grades (W400, Wmix, W320, W260, W240, W210, JK & JH). Choose your desired grade and pack size (1kg or 500g).',
+             'बड़े, क्रीमी और स्वच्छ रूप से ग्रेड किए गए प्रीमियम काजू — सभी 8 ग्रेड (W400, Wmix, W320, W260, W240, W210, JK और JH) में उपलब्ध।',
+             '/static/uploads/cashew.jpg', 200, '₹999', 'CAS-001',
+             '[{"name":"W400 (1kg)","price":"₹879"},{"name":"W400 (500g)","price":"₹499"},{"name":"Wmix (1kg)","price":"₹899"},{"name":"Wmix (500g)","price":"₹455"},{"name":"W320 (1kg)","price":"₹949"},{"name":"W320 (500g)","price":"₹479"},{"name":"W260 (1kg)","price":"₹999"},{"name":"W260 (500g)","price":"₹501"},{"name":"W240 (1kg)","price":"₹1030"},{"name":"W240 (500g)","price":"₹519"},{"name":"W210 Jumbo (1kg)","price":"₹1099"},{"name":"W210 Jumbo (500g)","price":"₹499"},{"name":"JK Grade (1kg)","price":"₹879"},{"name":"JK Grade (500g)","price":"₹449"},{"name":"JH Split (1kg)","price":"₹920"},{"name":"JH Split (500g)","price":"₹469"}]'),
 
             ('Makhana', 'मखाना', '₹1349', '1kg / 500g',
              'Premium fox nuts (Makhana) – light, crunchy and highly nutritious. Great for roasting.',
              'प्रीमियम मखाना – हल्का, कुरकुरा और अत्यधिक पौष्टिक। भूनने के लिए बढ़िया।',
-             '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png', 100, '', 'MAK-001',
+             '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png', 100, '₹1549', 'MAK-001',
              '[{"name":"1kg","price":"₹1349"},{"name":"500g","price":"₹679"}]'),
-
-            ('Kishmish', 'किशमिश', '₹549', '1kg / 500g',
-             'Premium golden raisins, naturally sun-dried. Sweet and full of natural energy.',
-             'प्रीमियम गोल्डन किशमिश, प्राकृतिक रूप से धूप में सुखाई गई। मीठी और प्राकृतिक ऊर्जा से भरपूर।', '', 200, '', 'KIS-001',
-             '[{"name":"1kg","price":"₹549"},{"name":"500g","price":"₹279"}]'),
 
             ('Badam', 'बादाम', '₹1249', '1kg / 500g',
              'California almonds – hand-sorted, rich in protein, fiber and healthy fats.',
-             'कैलिफोर्निया बादाम – हाथ से छाँटे, प्रोटीन, फाइबर और स्वस्थ वसा से भरपूर।', '', 150, '', 'BAD-001',
+             'कैलिफोर्निया बादाम – हाथ से छाँटे, प्रोटीन, फाइबर और स्वस्थ वसा से भरपूर।',
+             '/static/uploads/almonds.jpg', 150, '₹1449', 'BAD-001',
              '[{"name":"1kg","price":"₹1249"},{"name":"500g","price":"₹629"}]'),
 
             ('Akhrot', 'अखरोट', '₹899', '1kg / 500g',
              'Whole walnuts – rich in Omega-3 fatty acids and antioxidants. NOTE: 500g price (₹949) exceeds 1kg price (₹899) as specified.',
-             'साबुत अखरोट – ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।', '', 60, '', 'AKH-001',
+             'साबुत अखरोट – ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।',
+             '/static/uploads/walnuts.jpg', 100, '₹1049', 'AKH-001',
              '[{"name":"1kg","price":"₹899"},{"name":"500g","price":"₹949"}]'),
+
+            ('Kishmish', 'किशमिश', '₹549', '1kg / 500g',
+             'Premium golden raisins, naturally sun-dried. Sweet and full of natural energy.',
+             'प्रीमियम गोल्डन किशमिश, प्राकृतिक रूप से धूप में सुखाई गई। मीठी और प्राकृतिक ऊर्जा से भरपूर।',
+             '/static/uploads/raisins.jpg', 200, '₹649', 'KIS-001',
+             '[{"name":"1kg","price":"₹549"},{"name":"500g","price":"₹279"}]'),
+
+            ('Pistachio (Pista)', 'पिस्ता (Pista)', '₹899', '500g / 1kg',
+             'Premium roasted and lightly salted Iranian pistachios.',
+             'प्रीमियम रोस्टेड और नमकीन ईरानी पिस्ता।',
+             '/static/uploads/pistachio.jpg', 80, '₹1099', 'PIS-001',
+             '[{"name":"500g","price":"₹899"},{"name":"1kg","price":"₹1699"}]'),
+
+            ('Diwali Special Royal 4-Jar Gift Box', 'दिवाली स्पेशल रॉयल 4-जार गिफ्ट बॉक्स', '₹1350', 'Luxury Gift Box',
+             'Handcrafted Royal Peacock Palace wooden gift box with 4 airtight gold glass jars filled with Cashews, Almonds, Pistachios & Kishmish.',
+             'रॉयल मयूर गिफ्ट बॉक्स (4 गोल्ड ग्लास जार के साथ)।',
+             '/static/uploads/diwali-gift-box.jpg', 50, '₹1699', 'DIW-001',
+             '[{"name":"Royal 4-Jar Box","price":"₹1350"}]'),
         ]
-)
+    )
     # Customer OTP login table
     cur.execute('''CREATE TABLE IF NOT EXISTS customer_otps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

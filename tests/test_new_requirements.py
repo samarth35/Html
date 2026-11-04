@@ -89,38 +89,65 @@ def test_whatsapp_notification_destination(client, monkeypatch):
     assert wa_calls[0]['customer_name'] == 'Pooja Jain'
     assert wa_calls[0]['payment_method'] == 'cod'
 
-def test_products_have_1kg_and_500g_variants(client):
-    """Verify all products seeded in database have both 1kg and 500g selectable grades."""
+def test_cashew_has_all_8_grades_with_1kg_and_500g(client):
+    """Verify Cashew is a single base product with all 8 grades selectable in 1kg and 500g."""
     app, c = client
     conn = app.get_db()
-    rows = conn.execute('SELECT name_en, grades FROM products').fetchall()
+    row = conn.execute("SELECT name_en, grades FROM products WHERE name_en LIKE '%Cashew%'").fetchone()
     conn.close()
 
-    expected_prices = {
-        'Cashew W400': {'1kg': 879, '500g': 499},
-        'Cashew Wmix': {'1kg': 899, '500g': 455},
-        'Cashew W320': {'1kg': 949, '500g': 479},
-        'Cashew W260': {'1kg': 999, '500g': 501},
-        'Cashew W240': {'1kg': 1030, '500g': 519},
-        'Cashew W210': {'1kg': 1099, '500g': 499},
-        'Cashew Jk': {'1kg': 879, '500g': 449},
-        'Cashew Jh': {'1kg': 920, '500g': 469},
-        'Makhana': {'1kg': 1349, '500g': 679},
-        'Kishmish': {'1kg': 549, '500g': 279},
-        'Badam': {'1kg': 1249, '500g': 629},
-        'Akhrot': {'1kg': 899, '500g': 949},
+    assert row is not None
+    grades = json.loads(row['grades'])
+    grade_dict = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in grades}
+
+    expected_cashew_prices = {
+        'W400 (1kg)': 879,
+        'W400 (500g)': 499,
+        'Wmix (1kg)': 899,
+        'Wmix (500g)': 455,
+        'W320 (1kg)': 949,
+        'W320 (500g)': 479,
+        'W260 (1kg)': 999,
+        'W260 (500g)': 501,
+        'W240 (1kg)': 1030,
+        'W240 (500g)': 519,
+        'W210 Jumbo (1kg)': 1099,
+        'W210 Jumbo (500g)': 499,
+        'JK Grade (1kg)': 879,
+        'JK Grade (500g)': 449,
+        'JH Split (1kg)': 920,
+        'JH Split (500g)': 469,
     }
 
-    found_names = set()
-    for row in rows:
-        name = row['name_en']
-        if name in expected_prices:
-            found_names.add(name)
-            grades = json.loads(row['grades'])
-            grade_dict = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in grades}
-            assert '1kg' in grade_dict, f"{name} missing 1kg grade"
-            assert '500g' in grade_dict, f"{name} missing 500g grade"
-            assert grade_dict['1kg'] == expected_prices[name]['1kg']
-            assert grade_dict['500g'] == expected_prices[name]['500g']
+    for name, expected_price in expected_cashew_prices.items():
+        assert name in grade_dict, f"Missing cashew grade option: {name}"
+        assert grade_dict[name] == expected_price, f"Wrong price for {name}: expected {expected_price}, got {grade_dict[name]}"
 
-    assert len(found_names) == 12, f"Expected 12 products, found {len(found_names)}"
+def test_other_products_pricing(client):
+    """Verify Makhana, Badam, Akhrot, Kishmish pricing."""
+    app, c = client
+    conn = app.get_db()
+    rows = conn.execute("SELECT name_en, grades FROM products").fetchall()
+    conn.close()
+
+    p_map = {r['name_en']: json.loads(r['grades']) for r in rows}
+
+    # Makhana
+    m_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Makhana', [])}
+    assert m_grades.get('1kg') == 1349
+    assert m_grades.get('500g') == 679
+
+    # Badam
+    b_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Badam', [])}
+    assert b_grades.get('1kg') == 1249
+    assert b_grades.get('500g') == 629
+
+    # Akhrot
+    a_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Akhrot', [])}
+    assert a_grades.get('1kg') == 899
+    assert a_grades.get('500g') == 949
+
+    # Kishmish
+    k_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Kishmish', [])}
+    assert k_grades.get('1kg') == 549
+    assert k_grades.get('500g') == 279
