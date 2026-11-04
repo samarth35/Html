@@ -97,36 +97,45 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
 
   const subtotal = detailedItems.reduce((sum, i) => sum + i.lineTotal, 0);
 
-  // Calculate coupon discount while enforcing that Diwali Special Box (DIW-001) never goes below ₹1,300/box
+  // Calculate discount:
+  // IMPORTANT: Remove any discounts applied when 'Cash on Delivery' (COD) option is selected.
+  // Enforce Online Discount: The discount should ONLY apply when the user selects 'Online Payment' (Razorpay/UPI).
   let discount = 0;
-  if (appliedCoupon && subtotal >= appliedCoupon.minOrderAmount) {
-    if (appliedCoupon.discountType === 'percent') {
-      discount = detailedItems.reduce((acc, item) => {
-        const rawItemDiscount = Math.round(
-          (item.lineTotal * appliedCoupon.discountValue) / 100
-        );
-        if (item.product.sku === 'DIW-001') {
-          const minPricePerBox = settings.minDiwaliBoxPriceAfterDiscount || 1300;
-          const maxAllowedDiscountPerBox = Math.max(0, item.grade.price - minPricePerBox);
-          return acc + Math.min(rawItemDiscount, maxAllowedDiscountPerBox * item.quantity);
-        }
-        return acc + rawItemDiscount;
-      }, 0);
+  if (paymentMethod === 'Razorpay') {
+    if (appliedCoupon && subtotal >= appliedCoupon.minOrderAmount) {
+      if (appliedCoupon.discountType === 'percent') {
+        discount = detailedItems.reduce((acc, item) => {
+          const rawItemDiscount = Math.round(
+            (item.lineTotal * appliedCoupon.discountValue) / 100
+          );
+          if (item.product.sku === 'DIW-001') {
+            const minPricePerBox = settings.minDiwaliBoxPriceAfterDiscount || 1300;
+            const maxAllowedDiscountPerBox = Math.max(0, item.grade.price - minPricePerBox);
+            return acc + Math.min(rawItemDiscount, maxAllowedDiscountPerBox * item.quantity);
+          }
+          return acc + rawItemDiscount;
+        }, 0);
 
-      if (appliedCoupon.maxDiscount) {
-        discount = Math.min(discount, appliedCoupon.maxDiscount);
-      }
-    } else {
-      // Flat discount: still ensure any Diwali Box item does not drop below ₹1,300
-      const maxTotalAllowedDiscount = detailedItems.reduce((acc, item) => {
-        if (item.product.sku === 'DIW-001') {
-          const minPricePerBox = settings.minDiwaliBoxPriceAfterDiscount || 1300;
-          return acc + Math.max(0, item.grade.price - minPricePerBox) * item.quantity;
+        if (appliedCoupon.maxDiscount) {
+          discount = Math.min(discount, appliedCoupon.maxDiscount);
         }
-        return acc + item.lineTotal;
-      }, 0);
-      discount = Math.min(appliedCoupon.discountValue, maxTotalAllowedDiscount);
+      } else {
+        // Flat discount: still ensure any Diwali Box item does not drop below ₹1,300
+        const maxTotalAllowedDiscount = detailedItems.reduce((acc, item) => {
+          if (item.product.sku === 'DIW-001') {
+            const minPricePerBox = settings.minDiwaliBoxPriceAfterDiscount || 1300;
+            return acc + Math.max(0, item.grade.price - minPricePerBox) * item.quantity;
+          }
+          return acc + item.lineTotal;
+        }, 0);
+        discount = Math.min(appliedCoupon.discountValue, maxTotalAllowedDiscount);
+      }
+    } else if (settings.globalDiscountPercent && settings.globalDiscountPercent > 0) {
+      discount = Math.round((subtotal * settings.globalDiscountPercent) / 100);
     }
+  } else {
+    // When COD is selected, discount is strictly 0
+    discount = 0;
   }
 
   const freeShippingMin = settings.freeShippingThreshold || STORE_INFO.freeShippingThreshold || 999;
@@ -201,6 +210,9 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
     );
 
     const chosenMethod = overrideMethod || paymentMethod;
+    const isCod = chosenMethod.toUpperCase() === 'COD';
+    const effectiveDiscount = isCod ? 0 : discount;
+    const effectiveTotal = Math.max(0, subtotal - effectiveDiscount + shipping);
     let assignedOrderId = `JZ-${Math.floor(1050 + Math.random() * 8900)}`;
 
     try {
@@ -223,10 +235,10 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
           line_total: i.lineTotal,
         })),
         subtotal,
-        discount_amount: discount,
+        discount_amount: effectiveDiscount,
         shipping_charge: shipping,
-        coupon_code: appliedCoupon?.code || '',
-        total,
+        coupon_code: isCod ? '' : (appliedCoupon?.code || ''),
+        total: effectiveTotal,
         payment_method: chosenMethod.toLowerCase(),
         razorpay_payment_id: razorpayPaymentId || '',
         razorpay_order_id: razorpayOrderId || '',
@@ -934,6 +946,16 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                     </label>
                   ))}
                 </div>
+                {paymentMethod === 'COD' && (appliedCoupon || (settings.globalDiscountPercent && settings.globalDiscountPercent > 0)) && (
+                  <div className="mt-2.5 p-2.5 rounded-lg bg-amber-50 border border-amber-200/80 text-[11px] text-amber-800 flex items-center gap-2">
+                    <span className="text-base">ℹ️</span>
+                    <span>
+                      {lang === 'hi'
+                        ? 'छूट केवल ऑनलाइन भुगतान (UPI/Cards) पर लागू होती है। COD पर कोई छूट नहीं मिलती।'
+                        : 'Discounts apply strictly on Online Payment (UPI/Cards). No discounts are applied for Cash on Delivery (COD).'}
+                    </span>
+                  </div>
+                )}
               </div>
             </form>
           )}

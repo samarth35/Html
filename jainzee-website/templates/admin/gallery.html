@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery / Our Legacy - Jainzee Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="/static/js/csrf.js"></script>
+<script src="/static/js/premium.js?v=1.0"></script>
+<style>
+    .gallery-hero {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d1a0e 50%, #1a1a1a 100%);
+        border-radius: 18px;
+        padding: 36px 32px;
+        margin-bottom: 28px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        border: 1px solid rgba(184,134,11,0.3);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .gallery-hero-icon {
+        font-size: 3rem;
+        color: #b8860b;
+        filter: drop-shadow(0 4px 12px rgba(184,134,11,0.4));
+        flex-shrink: 0;
+    }
+    .gallery-hero h2 {
+        color: #ffd700;
+        font-size: 1.8rem;
+        margin: 0 0 6px;
+        font-family: var(--font-display, 'Playfair Display', serif);
+    }
+    .gallery-hero p {
+        color: #c8b896;
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .upload-zone {
+        border: 2.5px dashed rgba(184,134,11,0.4);
+        border-radius: 16px;
+        padding: 40px 20px;
+        text-align: center;
+        background: rgba(184,134,11,0.04);
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-bottom: 24px;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: #b8860b;
+        background: rgba(184,134,11,0.09);
+        transform: translateY(-2px);
+    }
+    .upload-zone i { font-size: 2.8rem; color: #b8860b; margin-bottom: 12px; display: block; }
+    .upload-zone p { color: #6b4f00; font-weight: 600; margin: 0 0 6px; font-size: 1.05rem; }
+    .upload-zone small { color: #8a7362; font-size: 0.82rem; }
+
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 18px;
+        margin-top: 20px;
+    }
+    .gallery-card {
+        background: #fff;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1.5px solid rgba(184,134,11,0.15);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+        transition: all 0.3s;
+        position: relative;
+    }
+    .gallery-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 28px rgba(184,134,11,0.18);
+        border-color: rgba(184,134,11,0.4);
+    }
+    .gallery-card-media {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        display: block;
+        background: #f5f0e8;
+    }
+    .gallery-card-media.video-thumb {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #b8860b;
+        background: linear-gradient(135deg, #f5f0e8, #ede0c8);
+    }
+    .gallery-card-body {
+        padding: 12px 14px;
+    }
+    .gallery-card-title {
+        font-weight: 600;
+        color: #2c1810;
+        font-size: 0.9rem;
+        margin: 0 0 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .gallery-card-category {
+        font-size: 0.75rem;
+        color: #8a7362;
+        margin: 0;
+    }
+    .gallery-card-actions {
+        display: flex;
+        gap: 8px;
+        padding: 10px 14px;
+        border-top: 1px solid rgba(184,134,11,0.1);
+    }
+    .gallery-card-delete {
+        flex: 1;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .gallery-card-delete:hover { background: #fecaca; }
+    .category-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+    }
+    .cat-tab {
+        padding: 8px 20px;
+        border-radius: 50px;
+        border: 1.5px solid rgba(184,134,11,0.3);
+        background: transparent;
+        color: #6b4f00;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Poppins', sans-serif;
+    }
+    .cat-tab.active, .cat-tab:hover {
+        background: #b8860b;
+        color: #fff;
+        border-color: #b8860b;
+    }
+    .upload-progress {
+        display: none;
+        background: #f0fdf4;
+        border: 1.5px solid #86efac;
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-top: 16px;
+        color: #166534;
+        font-weight: 600;
+        font-size: 0.9rem;
+        align-items: center;
+        gap: 10px;
+    }
+    .upload-progress.active { display: flex; }
+    .empty-gallery {
+        text-align: center;
+        padding: 60px 20px;
+        color: #8a7362;
+    }
+    .empty-gallery i { font-size: 4rem; margin-bottom: 16px; color: #c8b896; }
+    .empty-gallery h3 { font-size: 1.3rem; margin: 0 0 8px; color: #6b4f00; }
+    .badge-category {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0,0,0,0.6);
+        color: #ffd700;
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .upload-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 12px;
+        margin-bottom: 16px;
+        align-items: end;
+    }
+    @media (max-width: 600px) {
+        .upload-form-row { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+    <header class="admin-header">
+        <div class="brand">
+            <i class="fas fa-seedling"></i>
+            <span>Jainzee Admin Panel</span>
+        </div>
+        <nav class="admin-nav">
+            <a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="{{ url_for('admin_products_page') }}"><i class="fas fa-box-open"></i> Products & Stock</a>
+            <a href="{{ url_for('admin_orders_page') }}"><i class="fas fa-receipt"></i> Orders</a>
+            <a href="{{ url_for('admin_gallery_page') }}" class="active"><i class="fas fa-images"></i> Gallery / Legacy</a>
+            <a href="{{ url_for('admin_settings_page') }}"><i class="fas fa-cog"></i> Settings</a>
+            <a href="/" target="_blank"><i class="fas fa-external-link-alt"></i> View Site</a>
+            <a href="{{ url_for('admin_logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </nav>
+    </header>
+
+    <main class="admin-content">
+
+        <!-- Hero Banner -->
+        <div class="gallery-hero">
+            <div class="gallery-hero-icon"><i class="fas fa-camera-retro"></i></div>
+            <div>
+                <h2>🏭 Gallery / Our Legacy</h2>
+                <p>Upload photos and videos of our physical shop, factory floor, production process and team. These showcase the heritage and authenticity of Jainzee Food Processing Industries.</p>
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h2><i class="fas fa-cloud-upload-alt"></i> Upload Media</h2>
+            </div>
+            <div style="padding: 20px;">
+                <div class="upload-form-row">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Title / Caption</label>
+                        <input type="text" id="uploadTitle" placeholder="e.g. Factory floor, Shop entrance..." style="width:100%">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Category</label>
+                        <select id="uploadCategory" style="width:100%; padding: 10px; border: 1.5px solid #e8e0d5; border-radius: 10px; font-family: 'Poppins',sans-serif; font-size: 0.9rem;">
+                            <option value="factory">🏭 Factory</option>
+                            <option value="shop">🏪 Shop / Store</option>
+                            <option value="team">👥 Team</option>
+                            <option value="production">⚙️ Production</option>
+                            <option value="products">📦 Products</option>
+                            <option value="events">🎉 Events</option>
+                            <option value="other">📷 Other</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="document.getElementById('galleryFileInput').click()">
+                        <i class="fas fa-plus"></i> Choose File
+                    </button>
+                </div>
+
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('galleryFileInput').click()"
+                     ondragover="event.preventDefault(); this.classList.add('drag-over')"
+                     ondragleave="this.classList.remove('drag-over')"
+                     ondrop="handleDrop(event)">
+                    <i class="fas fa-images"></i>
+                    <p>Drag & drop photos/videos here, or click to browse</p>
+                    <small>Supports JPG, PNG, WEBP, GIF, MP4, WEBM • Up to 100MB</small>
+                </div>
+                <input type="file" id="galleryFileInput" accept="image/*,video/*" style="display:none" onchange="uploadGalleryFile(this.files[0])">
+
+                <div class="upload-progress" id="uploadProgress">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span id="uploadProgressText">Uploading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gallery Grid -->
+        <div class="admin-card" style="margin-top: 24px;">
+            <div class="admin-card-header">
+                <h2><i class="fas fa-th-large"></i> Media Gallery</h2>
+                <span id="mediaCount" style="font-size: 0.85rem; color: #8a7362;"></span>
+            </div>
+            <div style="padding: 16px 20px;">
+                <div class="category-tabs" id="categoryTabs">
+                    <button class="cat-tab active" data-cat="all" onclick="filterCategory('all', this)">🌟 All</button>
+                    <button class="cat-tab" data-cat="factory" onclick="filterCategory('factory', this)">🏭 Factory</button>
+                    <button class="cat-tab" data-cat="shop" onclick="filterCategory('shop', this)">🏪 Shop</button>
+                    <button class="cat-tab" data-cat="team" onclick="filterCategory('team', this)">👥 Team</button>
+                    <button class="cat-tab" data-cat="production" onclick="filterCategory('production', this)">⚙️ Production</button>
+                    <button class="cat-tab" data-cat="products" onclick="filterCategory('products', this)">📦 Products</button>
+                    <button class="cat-tab" data-cat="events" onclick="filterCategory('events', this)">🎉 Events</button>
+                    <button class="cat-tab" data-cat="other" onclick="filterCategory('other', this)">📷 Other</button>
+                </div>
+                <div class="gallery-grid" id="galleryGrid">
+                    <!-- Loaded via JS -->
+                    <div class="empty-gallery" id="galleryEmpty" style="display:none; grid-column: 1/-1;">
+                        <i class="fas fa-images"></i>
+                        <h3>No photos yet</h3>
+                        <p>Upload photos and videos of your shop and factory above to get started.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script>
+        let allMedia = [];
+        let activeFilter = 'all';
+
+        const categoryEmoji = {
+            factory: '🏭', shop: '🏪', team: '👥',
+            production: '⚙️', products: '📦', events: '🎉', other: '📷'
+        };
+
+        async function loadGallery() {
+            try {
+                const res = await fetch('/admin/api/general-media');
+                allMedia = await res.json();
+                renderGallery();
+            } catch(e) {
+                console.error('Failed to load gallery:', e);
+                showToast('Failed to load gallery', 'error');
+            }
+        }
+
+        function filterCategory(cat, btn) {
+            activeFilter = cat;
+            document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderGallery();
+        }
+
+        function renderGallery() {
+            const grid = document.getElementById('galleryGrid');
+            const emptyEl = document.getElementById('galleryEmpty');
+            const countEl = document.getElementById('mediaCount');
+
+            const filtered = activeFilter === 'all'
+                ? allMedia
+                : allMedia.filter(m => m.category === activeFilter);
+
+            countEl.textContent = filtered.length + ' item' + (filtered.length !== 1 ? 's' : '');
+
+            if (!filtered.length) {
+                emptyEl.style.display = '';
+                // Clear any existing cards
+                Array.from(grid.children).forEach(c => { if (!c.classList.contains('empty-gallery')) c.remove(); });
+                emptyEl.style.display = 'block';
+                emptyEl.style.gridColumn = '1/-1';
+                return;
+            }
+            emptyEl.style.display = 'none';
+
+            // Build HTML
+            const cards = filtered.map(m => {
+                const isVideo = m.type === 'video';
+                const cat = m.category || 'other';
+                const emoji = categoryEmoji[cat] || '📷';
+                const catLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+                const mediaEl = isVideo
+                    ? `<div class="gallery-card-media video-thumb"><i class="fas fa-play-circle"></i></div>`
+                    : `<img class="gallery-card-media" src="${escapeHtml(m.url)}" alt="${escapeHtml(m.title || 'Gallery image')}" loading="lazy" onerror="this.src='/static/images/placeholder.png'">`;
+
+                return `<div class="gallery-card" data-id="${m.id}" data-cat="${cat}">
+                    <span class="badge-category">${emoji} ${catLabel}</span>
+                    ${mediaEl}
+                    <div class="gallery-card-body">
+                        <p class="gallery-card-title" title="${escapeHtml(m.title || '')}">
+                            ${escapeHtml(m.title || 'Untitled')}
+                        </p>
+                        <p class="gallery-card-category">${isVideo ? '🎬 Video' : '📷 Photo'} • ${m.created_at ? m.created_at.substring(0,10) : ''}</p>
+                    </div>
+                    <div class="gallery-card-actions">
+                        <a href="${escapeHtml(m.url)}" target="_blank" class="btn btn-sm btn-outline" style="flex:1; text-align:center; font-size:0.78rem; padding:7px 10px;">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <button class="gallery-card-delete" onclick="deleteMedia(${m.id}, this)">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Replace grid content (keep empty placeholder)
+            Array.from(grid.children).forEach(c => { if (!c.classList.contains('empty-gallery')) c.remove(); });
+            grid.insertAdjacentHTML('afterbegin', cards);
+        }
+
+        async function uploadGalleryFile(file) {
+            if (!file) return;
+            const progressEl = document.getElementById('uploadProgress');
+            const progressText = document.getElementById('uploadProgressText');
+            progressEl.classList.add('active');
+            progressText.textContent = 'Uploading ' + file.name + '...';
+
+            const title = document.getElementById('uploadTitle').value.trim() || file.name;
+            const category = document.getElementById('uploadCategory').value;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', title);
+            formData.append('category', category);
+
+            try {
+                const csrfToken = getCsrfToken();
+                const res = await fetch('/admin/api/general-media', {
+                    method: 'POST',
+                    headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {},
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    progressEl.classList.remove('active');
+                    document.getElementById('uploadTitle').value = '';
+                    showToast('✅ Media uploaded successfully!', 'success');
+                    await loadGallery();
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } catch(e) {
+                progressEl.classList.remove('active');
+                showToast('Upload failed: ' + e.message, 'error');
+                console.error(e);
+            }
+            // Reset input so same file can be re-uploaded
+            document.getElementById('galleryFileInput').value = '';
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            document.getElementById('uploadZone').classList.remove('drag-over');
+            const file = event.dataTransfer.files[0];
+            if (file) uploadGalleryFile(file);
+        }
+
+        async function deleteMedia(id, btn) {
+            if (!confirm('Delete this photo/video? This cannot be undone.')) return;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            try {
+                const csrfToken = getCsrfToken();
+                const res = await fetch('/admin/api/general-media/' + id, {
+                    method: 'DELETE',
+                    headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {}
+                });
+                if (res.ok) {
+                    allMedia = allMedia.filter(m => m.id !== id);
+                    renderGallery();
+                    showToast('Media deleted', 'success');
+                } else {
+                    throw new Error('Delete failed');
+                }
+            } catch(e) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+                showToast('Failed to delete: ' + e.message, 'error');
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function getCsrfToken() {
+            const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrf_token='));
+            return cookie ? cookie.split('=')[1].trim() : '';
+        }
+
+        document.addEventListener('DOMContentLoaded', loadGallery);
+    </script>
+</body>
+</html>

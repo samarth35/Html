@@ -745,7 +745,9 @@ def init_db():
         'smtp_port': '587',
         'smtp_user': 'info@jainzee.in',
         'smtp_pass': '',
-        'smtp_from': 'info@jainzee.in'
+        'smtp_from': 'info@jainzee.in',
+        'callmebot_api_key': '',
+        'twilio_whatsapp_from': 'whatsapp:+14155238886',
     }
     for k, v in default_settings.items():
         cur.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
@@ -763,24 +765,69 @@ def init_db():
 
 
     cur.executemany(
-        '''INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        '''INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, grades)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         [
-            ('Premium Cashew', 'प्रीमियम काजू', '₹1,200', '500g / 1kg',
-             'Large, creamy and perfectly roasted premium cashews. Rich in healthy fats and essential minerals.',
-             'बड़े, क्रीमी और बेहतरीन रोस्टेड प्रीमियम काजू। स्वस्थ वसा और आवश्यक खनिजों से भरपूर।', '', 100, '₹1,500', 'CAS-001'),
-            ('Pistachio', 'पिस्ता', '₹1,800', '250g / 500g',
-             'Premium Iranian pistachios - crunchy, flavorful and naturally salted. A great source of protein and fiber.',
-             'प्रीमियम ईरानी पिस्ता - कुरकुरे, स्वादिष्ट और प्राकृतिक नमकीन। प्रोटीन और फाइबर का बेहतरीन स्रोत।', '', 75, '₹2,000', 'PIS-001'),
-            ('Almonds', 'बादाम', '₹900', '500g / 1kg',
-             'California almonds, hand-sorted for uniform size. Perfect for daily nutrition and healthy snacking.',
-             'हैंड-सॉर्टेड कैलिफोर्निया बादाम, एक समान आकार के। दैनिक पोषण और स्वस्थ नाश्ते के लिए उत्तम।', '', 150, '₹1,100', 'ALM-001'),
-            ('Walnuts', 'अखरोट', '₹1,400', '250g / 500g',
-             'Whole walnuts with light-colored kernels, rich in Omega-3 fatty acids and antioxidants.',
-             'हल्के रंग की गिरी वाले साबुत अखरोट, ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।', '', 60, '₹1,600', 'WAL-001'),
-            ('Raisins (Kishmish)', 'किशमिश', '₹350', '500g / 1kg',
-             'Golden and black raisins, naturally sun-dried. Sweet, juicy and full of natural energy.',
-             'गोल्डन और ब्लैक किशमिश, प्राकृतिक रूप से धूप में सुखाई गई। मीठी, रसीली और प्राकृतिक ऊर्जा से भरपूर।', '', 200, '₹400', 'RAI-001'),
+            ('Cashew W400', 'काजू W400', '₹879', '1kg / 500g',
+             'Premium W400 cashews – whole, creamy and rich in healthy fats.',
+             'प्रीमियम W400 काजू – साबुत, मलाईदार और स्वस्थ वसा से भरपूर।', '', 100, '', 'CAS-W400',
+             '[{"name":"1kg","price":"₹879"},{"name":"500g","price":"₹499"}]'),
+
+            ('Cashew Wmix', 'काजू Wmix', '₹899', '1kg / 500g',
+             'Mixed grade premium cashews. Great value, great taste.',
+             'मिश्रित ग्रेड के प्रीमियम काजू। बेहतरीन मूल्य, बेहतरीन स्वाद।', '', 100, '', 'CAS-WMIX',
+             '[{"name":"1kg","price":"₹899"},{"name":"500g","price":"₹455"}]'),
+
+            ('Cashew W320', 'काजू W320', '₹949', '1kg / 500g',
+             'Medium-sized W320 grade cashews. Perfect for everyday snacking.',
+             'मध्यम आकार के W320 ग्रेड काजू। रोज़मर्रा के नाश्ते के लिए परफेक्ट।', '', 100, '', 'CAS-W320',
+             '[{"name":"1kg","price":"₹949"},{"name":"500g","price":"₹479"}]'),
+
+            ('Cashew W260', 'काजू W260', '₹999', '1kg / 500g',
+             'Large W260 cashews – bold flavour, premium quality.',
+             'बड़े W260 काजू – गहरा स्वाद, प्रीमियम गुणवत्ता।', '', 100, '', 'CAS-W260',
+             '[{"name":"1kg","price":"₹999"},{"name":"500g","price":"₹501"}]'),
+
+            ('Cashew W240', 'काजू W240', '₹1030', '1kg / 500g',
+             'Extra-large W240 cashews. Ideal for gifting and special occasions.',
+             'एक्स्ट्रा-लार्ज W240 काजू। उपहार और विशेष अवसरों के लिए आदर्श।', '', 100, '', 'CAS-W240',
+             '[{"name":"1kg","price":"₹1030"},{"name":"500g","price":"₹519"}]'),
+
+            ('Cashew W210', 'काजू W210', '₹1099', '1kg / 500g',
+             'Jumbo W210 cashews – the finest and largest in our range.',
+             'जम्बो W210 काजू – हमारी रेंज में सबसे बढ़िया और सबसे बड़े।', '', 100, '', 'CAS-W210',
+             '[{"name":"1kg","price":"₹1099"},{"name":"500g","price":"₹499"}]'),
+
+            ('Cashew Jk', 'काजू Jk', '₹879', '1kg / 500g',
+             'Jk grade premium cashews from Jainzee\'s trusted sources.',
+             'जैनज़ी के विश्वसनीय स्रोतों से Jk ग्रेड प्रीमियम काजू।', '', 100, '', 'CAS-JK',
+             '[{"name":"1kg","price":"₹879"},{"name":"500g","price":"₹449"}]'),
+
+            ('Cashew Jh', 'काजू Jh', '₹920', '1kg / 500g',
+             'Jh grade cashews – hand-sorted for uniform size and taste.',
+             'Jh ग्रेड काजू – एक समान आकार और स्वाद के लिए हाथ से छाँटे गए।', '', 100, '', 'CAS-JH',
+             '[{"name":"1kg","price":"₹920"},{"name":"500g","price":"₹469"}]'),
+
+            ('Makhana', 'मखाना', '₹1349', '1kg / 500g',
+             'Premium fox nuts (Makhana) – light, crunchy and highly nutritious. Great for roasting.',
+             'प्रीमियम मखाना – हल्का, कुरकुरा और अत्यधिक पौष्टिक। भूनने के लिए बढ़िया।',
+             '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png', 100, '', 'MAK-001',
+             '[{"name":"1kg","price":"₹1349"},{"name":"500g","price":"₹679"}]'),
+
+            ('Kishmish', 'किशमिश', '₹549', '1kg / 500g',
+             'Premium golden raisins, naturally sun-dried. Sweet and full of natural energy.',
+             'प्रीमियम गोल्डन किशमिश, प्राकृतिक रूप से धूप में सुखाई गई। मीठी और प्राकृतिक ऊर्जा से भरपूर।', '', 200, '', 'KIS-001',
+             '[{"name":"1kg","price":"₹549"},{"name":"500g","price":"₹279"}]'),
+
+            ('Badam', 'बादाम', '₹1249', '1kg / 500g',
+             'California almonds – hand-sorted, rich in protein, fiber and healthy fats.',
+             'कैलिफोर्निया बादाम – हाथ से छाँटे, प्रोटीन, फाइबर और स्वस्थ वसा से भरपूर।', '', 150, '', 'BAD-001',
+             '[{"name":"1kg","price":"₹1249"},{"name":"500g","price":"₹629"}]'),
+
+            ('Akhrot', 'अखरोट', '₹899', '1kg / 500g',
+             'Whole walnuts – rich in Omega-3 fatty acids and antioxidants. NOTE: 500g price (₹949) exceeds 1kg price (₹899) as specified.',
+             'साबुत अखरोट – ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।', '', 60, '', 'AKH-001',
+             '[{"name":"1kg","price":"₹899"},{"name":"500g","price":"₹949"}]'),
         ]
 )
     # Customer OTP login table
@@ -2142,6 +2189,18 @@ def api_customer_orders():
         razorpay_payment_id = str(data.get('razorpay_payment_id', ''))
         razorpay_order_id = str(data.get('razorpay_order_id', ''))
         razorpay_signature = str(data.get('razorpay_signature', ''))
+
+        # Strictly enforce: Discount ONLY applies when payment_method is online ('razorpay' or 'upi').
+        # If Cash on Delivery (COD) is chosen, discount must be 0 and cannot be bypassed.
+        if payment_method == 'cod':
+            discount_amount = '0'
+            coupon_code = ''
+            try:
+                sub_f = float(subtotal or 0)
+                ship_f = float(shipping_charge or 0)
+                total = str(round(sub_f + ship_f, 2))
+            except Exception:
+                pass
         
         status = 'paid_razorpay' if (payment_method == 'razorpay' and razorpay_payment_id) else 'confirmed'
 
@@ -2176,6 +2235,25 @@ def api_customer_orders():
 
         conn.commit()
         conn.close()
+
+        # WhatsApp notification to +91 7649848584
+        try:
+            _send_whatsapp_order_notification(
+                order_id=order_id,
+                customer_name=name,
+                customer_phone=phone,
+                customer_address=address,
+                items_snapshot=items,
+                subtotal=float(subtotal or 0),
+                discount=float(discount_amount or 0),
+                shipping=float(shipping_charge or 0),
+                total=float(total or 0),
+                payment_method=payment_method,
+                coupon_code=coupon_code
+            )
+        except Exception as _wa_err:
+            print(f"[WHATSAPP] Failed to send notification from api_customer_orders: {_wa_err}")
+
         return jsonify({
             'success': True,
             'id': order_id,
@@ -2503,6 +2581,11 @@ def admin_settings_page():
 def admin_coupons_page():
     return render_template('admin/coupons.html')
 
+@app.route('/admin/gallery')
+@login_required
+def admin_gallery_page():
+    return render_template('admin/gallery.html')
+
 # ---------------- ADMIN API ----------------
 
 @app.route('/admin/api/products', methods=['GET', 'POST'])
@@ -2611,7 +2694,8 @@ def admin_api_site():
                                  'shipping_charge', 'free_shipping_min',
                                  'razorpay_key_id', 'razorpay_key_secret',
                                  'twilio_account_sid', 'twilio_auth_token', 'twilio_verify_service_sid',
-                                 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from']
+                                 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
+                                 'callmebot_api_key', 'twilio_whatsapp_from']
                 for key in editable_keys:
                     if key in data:
                         # Use INSERT OR REPLACE to ensure persistence even for new keys
@@ -3405,6 +3489,7 @@ def api_razorpay_create_order():
             subtotal += item_price * qty
 
     global_discount_percent = 0.0
+    # Razorpay is always online payment - discount applies
     try:
         global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount_percent'").fetchone()
         if global_discount_row is None or not str(global_discount_row['value'] or '').strip():
@@ -3503,6 +3588,101 @@ def api_razorpay_create_order():
         print(f"[RAZORPAY EXCEPTION] {e}")
         return jsonify({'error': f"Failed to connect to Razorpay: {str(e)}"}), 500
 
+
+# ── WhatsApp Order Notification ───────────────────────────────────────────────
+WHATSAPP_NOTIFY_NUMBER = '917649848584'  # +91 7649848584
+
+def _send_whatsapp_order_notification(order_id, customer_name, customer_phone,
+                                       customer_address, items_snapshot,
+                                       subtotal, discount, shipping, total,
+                                       payment_method, coupon_code=''):
+    """Send a structured WhatsApp notification to the shop owner via CallMeBot API
+    (free, no account required – the number must have saved the bot contact once).
+    Falls back to Twilio WhatsApp if TWILIO_ACCOUNT_SID is configured.
+    Errors are swallowed so they never block the checkout response.
+    """
+    # Build human-readable items list
+    item_lines = []
+    for it in items_snapshot:
+        name = it.get('name_en', 'Product')
+        variant = it.get('variant', '')
+        qty = it.get('quantity', 1)
+        price = it.get('unit_price', 0)
+        line = f"  • {name}"
+        if variant:
+            line += f" ({variant})"
+        line += f" x{qty} = ₹{round(price * qty, 2)}"
+        item_lines.append(line)
+    items_text = '\n'.join(item_lines) if item_lines else '  (no items)'
+
+    pm_display = {
+        'cod': 'Cash on Delivery (COD)',
+        'razorpay': 'Online Payment (Razorpay)',
+        'upi': 'Direct UPI',
+    }.get(payment_method.lower(), payment_method)
+
+    coupon_line = f'\nCoupon: {coupon_code}' if coupon_code else ''
+
+    message = (
+        f"🛒 *New Order #{order_id}* — Jainzee Foods\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 *Customer:* {customer_name}\n"
+        f"📱 *Phone:* {customer_phone}\n"
+        f"📍 *Address:* {customer_address}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🧾 *Items:*\n{items_text}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 Subtotal: ₹{round(subtotal, 2)}\n"
+        f"🏷️ Discount: -₹{round(discount, 2)}{coupon_line}\n"
+        f"🚚 Shipping: ₹{round(shipping, 2)}\n"
+        f"✅ *Total: ₹{round(total, 2)}*\n"
+        f"💳 Payment: {pm_display}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⏰ {datetime.now().strftime('%d %b %Y, %I:%M %p')}"
+    )
+
+    # --- Method 1: CallMeBot (free WhatsApp API, no extra account needed) ---
+    callmebot_apikey = get_config_setting('callmebot_api_key', '').strip()
+    if callmebot_apikey:
+        try:
+            encoded_msg = urllib.parse.quote(message)
+            url = (f"https://api.callmebot.com/whatsapp.php?"
+                   f"phone={WHATSAPP_NOTIFY_NUMBER}&text={encoded_msg}&apikey={callmebot_apikey}")
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                resp.read()
+                print(f"[WHATSAPP] CallMeBot notification sent for order #{order_id}")
+                return
+        except Exception as e:
+            print(f"[WHATSAPP] CallMeBot failed: {e}")
+
+    # --- Method 2: Twilio WhatsApp (requires TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN) ---
+    twilio_sid = get_config_setting('twilio_account_sid', os.environ.get('TWILIO_ACCOUNT_SID', ''))
+    twilio_token = get_config_setting('twilio_auth_token', os.environ.get('TWILIO_AUTH_TOKEN', ''))
+    twilio_whatsapp_from = get_config_setting('twilio_whatsapp_from', os.environ.get('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886'))
+    if twilio_sid and twilio_token:
+        try:
+            to_number = f"whatsapp:+{WHATSAPP_NOTIFY_NUMBER}"
+            url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
+            auth = base64.b64encode(f"{twilio_sid}:{twilio_token}".encode()).decode()
+            payload = urllib.parse.urlencode({
+                'From': twilio_whatsapp_from,
+                'To': to_number,
+                'Body': message
+            }).encode()
+            req = urllib.request.Request(url, data=payload, headers={
+                'Authorization': f'Basic {auth}',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            })
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                resp.read()
+                print(f"[WHATSAPP] Twilio notification sent for order #{order_id}")
+                return
+        except Exception as e:
+            print(f"[WHATSAPP] Twilio WhatsApp failed: {e}")
+
+    # --- Fallback: Log to console (always works) ---
+    print(f"[WHATSAPP ORDER NOTIFICATION]\n{message}")
 
 # ── Guest Checkout Helper ─────────────────────────────────────────────────────
 def _resolve_guest_customer_id(conn, name, phone, session):
@@ -3617,15 +3797,17 @@ def api_checkout():
     import json as json_mod
     
     # Fetch global discount from settings (use global_discount_percent, fallback to global_discount for legacy)
+    # IMPORTANT: Discount is ONLY applied for online payment (razorpay/upi). COD orders get NO discount.
     global_discount_percent = 0
-    try:
-        global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount_percent'").fetchone()
-        if global_discount_row is None or not str(global_discount_row['value'] or '').strip():
-            global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount'").fetchone()
-        if global_discount_row and str(global_discount_row['value'] or '').strip():
-            global_discount_percent = float(str(global_discount_row['value']).replace('%', '').strip()) or 0
-    except (ValueError, TypeError):
-        global_discount_percent = 0
+    if payment_method in ('razorpay', 'upi'):
+        try:
+            global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount_percent'").fetchone()
+            if global_discount_row is None or not str(global_discount_row['value'] or '').strip():
+                global_discount_row = conn.execute("SELECT value FROM settings WHERE key='global_discount'").fetchone()
+            if global_discount_row and str(global_discount_row['value'] or '').strip():
+                global_discount_percent = float(str(global_discount_row['value']).replace('%', '').strip()) or 0
+        except (ValueError, TypeError):
+            global_discount_percent = 0
     
     # Validate every cart item: quantity must be a positive integer within
     # available stock. Checkout is blocked if stock is insufficient.
@@ -3741,7 +3923,15 @@ def api_checkout():
         else:
             shipping_charge = round((distance_km - 7.0) * 4.0)
     
-    total_discount = global_discount_amount + coupon_discount
+    # Strictly enforce: Discounts ONLY apply for Online Payment (razorpay/upi).
+    # COD orders receive ZERO discount (neither global discount nor coupon discount).
+    if payment_method == 'cod':
+        global_discount_amount = 0.0
+        coupon_discount = 0.0
+        total_discount = 0.0
+        coupon_code = ''
+    else:
+        total_discount = global_discount_amount + coupon_discount
     final_total = subtotal - total_discount + shipping_charge
     if final_total < 0:
         final_total = 0
@@ -3777,7 +3967,25 @@ def api_checkout():
     # Clear cart
     session.pop('cart', None)
     session.modified = True
-    
+
+    # ---- WhatsApp Order Notification ----
+    try:
+        _send_whatsapp_order_notification(
+            order_id=order_id,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            customer_address=customer_address,
+            items_snapshot=order_items_snapshot,
+            subtotal=subtotal,
+            discount=total_discount,
+            shipping=shipping_charge,
+            total=final_total,
+            payment_method=payment_method,
+            coupon_code=coupon_code,
+        )
+    except Exception as _wa_err:
+        print(f'[WHATSAPP NOTIFY ERROR] {_wa_err}')
+
     return jsonify({
         'order_id': order_id,
         'total': '₹' + str(round(final_total, 2)),

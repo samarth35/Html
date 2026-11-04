@@ -752,8 +752,12 @@
                 const itemPrice = gradePrice > 0 ? gradePrice : basePrice;
                 
                 // Calculate global admin discount on this item only
+                // Discount ONLY applies for Online Payment (Razorpay/UPI) — NOT for COD
                 const itemSubtotal = itemPrice * item.quantity;
-                const itemGlobalDiscount = (itemSubtotal * globalDiscountPercent) / 100;
+                const selectedPayment = document.querySelector('input[name="payment"]:checked');
+                const currentPaymentMethod = selectedPayment ? selectedPayment.value : 'razorpay';
+                const effectiveDiscountPercent = (currentPaymentMethod === 'cod') ? 0 : globalDiscountPercent;
+                const itemGlobalDiscount = (itemSubtotal * effectiveDiscountPercent) / 100;
                 
                 subtotal += itemSubtotal;
                 globalDiscountAmount += itemGlobalDiscount;
@@ -1027,6 +1031,8 @@ const name = document.getElementById('checkoutName').value.trim();
                 if (btnText) btnText.textContent = (typeof currentLangCheckout !== 'undefined' && currentLangCheckout === 'hi') ? 'ऑर्डर दें (Cash on Delivery)' : 'Place Order (Cash on Delivery)';
                 if (btnIcon) btnIcon.className = 'fas fa-truck';
             }
+            // Re-render totals so discount shows/hides based on payment method
+            if (typeof renderCheckoutItems === 'function') renderCheckoutItems();
         }
 
         // Language toggle

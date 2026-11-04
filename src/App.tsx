@@ -32,7 +32,7 @@ export default function App() {
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('jainzee_products_v5');
+      const saved = localStorage.getItem('jainzee_products_v8');
       if (saved) return JSON.parse(saved);
     } catch {}
     return INITIAL_PRODUCTS;
@@ -99,28 +99,60 @@ export default function App() {
       .then((res) => (res.ok ? res.json() : null))
       .then((serverProducts) => {
         if (Array.isArray(serverProducts) && serverProducts.length > 0) {
-          setProducts((prev) =>
-            prev.map((existing) => {
-              const sp = serverProducts.find((p: any) => p.id === existing.id);
-              if (!sp) return existing;
-              const spPrice = Number(String(sp.price || '').replace(/[^\d.]/g, '')) || existing.grades[0]?.price;
-              const spOldPrice = Number(String(sp.old_price || '').replace(/[^\d.]/g, '')) || existing.grades[0]?.oldPrice;
-              return {
-                ...existing,
-                name_en: sp.name_en || existing.name_en,
-                name_hi: sp.name_hi || existing.name_hi,
-                description_en: sp.description_en || existing.description_en,
-                description_hi: sp.description_hi || existing.description_hi,
-                stock: sp.stock !== undefined ? Number(sp.stock) : existing.stock,
-                image: sp.image || existing.image,
-                grades: existing.grades.map((g, idx) =>
-                  idx === 0
-                    ? { ...g, price: spPrice || g.price, oldPrice: spOldPrice || g.oldPrice }
-                    : g
-                ),
-              };
-            })
-          );
+          const mapped: Product[] = serverProducts.map((sp: any) => {
+            let parsedGrades: ProductGrade[] = [];
+            try {
+              const gList = typeof sp.grades === 'string' ? JSON.parse(sp.grades) : sp.grades;
+              if (Array.isArray(gList) && gList.length > 0) {
+                parsedGrades = gList.map((g: any) => ({
+                  label: g.name || g.label || '1kg',
+                  weightGrams: (g.name || g.label || '').includes('500') ? 500 : 1000,
+                  price: Number(String(g.price || '').replace(/[^\d.]/g, '')) || 0,
+                  oldPrice: Number(String(g.old_price || g.oldPrice || '').replace(/[^\d.]/g, '')) || Math.round((Number(String(g.price || '').replace(/[^\d.]/g, '')) || 0) * 1.15),
+                }));
+              }
+            } catch {}
+
+            if (parsedGrades.length === 0) {
+              const basePrice = Number(String(sp.price || '').replace(/[^\d.]/g, '')) || 999;
+              const oldPrice = Number(String(sp.old_price || '').replace(/[^\d.]/g, '')) || Math.round(basePrice * 1.15);
+              parsedGrades = [
+                { label: '1kg', weightGrams: 1000, price: basePrice, oldPrice },
+                { label: '500g', weightGrams: 500, price: Math.round(basePrice * 0.55), oldPrice: Math.round(oldPrice * 0.55) },
+              ];
+            }
+
+            const existing = INITIAL_PRODUCTS.find((p) => p.name_en.toLowerCase() === (sp.name_en || '').toLowerCase() || p.id === sp.id);
+
+            return {
+              id: sp.id,
+              sku: sp.sku || existing?.sku || `JZ-${sp.id}`,
+              category: (sp.category as any) || existing?.category || 'cashews',
+              categoryLabel_en: sp.weight || '1kg / 500g Pack',
+              categoryLabel_hi: sp.weight || '1kg / 500g पैक',
+              name_en: sp.name_en || existing?.name_en || 'Product',
+              name_hi: sp.name_hi || existing?.name_hi || sp.name_en || 'उत्पाद',
+              subtitle_en: sp.weight || 'Available in 1kg & 500g packs',
+              subtitle_hi: sp.weight || '1kg और 500g पैक में उपलब्ध',
+              description_en: sp.description_en || existing?.description_en || '',
+              description_hi: sp.description_hi || existing?.description_hi || '',
+              origin_en: 'Siyaganj, Indore',
+              origin_hi: 'सियागंज, इंदौर',
+              image: sp.image || existing?.image || '/images/cashew.jpeg',
+              video: sp.video || existing?.video,
+              fallbackColor: existing?.fallbackColor || '#F5EFE6',
+              stock: sp.stock !== undefined ? Number(sp.stock) : 100,
+              featuredTag_en: existing?.featuredTag_en,
+              featuredTag_hi: existing?.featuredTag_hi,
+              grades: parsedGrades,
+              nutritionPer100g: existing?.nutritionPer100g || { energyKcal: 550, proteinG: 18, healthyFatsG: 44, fiberG: 3 },
+              reviews: existing?.reviews || [],
+            };
+          });
+
+          if (mapped.length > 0) {
+            setProducts(mapped);
+          }
         }
       })
       .catch(() => {});
@@ -137,7 +169,7 @@ export default function App() {
   }, [lang]);
 
   useEffect(() => {
-    localStorage.setItem('jainzee_products_v5', JSON.stringify(products));
+    localStorage.setItem('jainzee_products_v8', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
