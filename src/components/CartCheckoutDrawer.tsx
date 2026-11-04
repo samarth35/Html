@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   MapPin,
+  Loader2,
 } from 'lucide-react';
 import { CartItem, Coupon, Language, Order, Product, StoreSettings } from '../types';
 import { calculateKmDeliveryCharge, calculateOrderShippingCharge, STORE_INFO } from '../data/storeData';
@@ -65,6 +66,8 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
   const [customerPincode, setCustomerPincode] = useState('452001');
   const [paymentMethod, setPaymentMethod] = useState<'COD' | 'Razorpay'>('Razorpay');
   const [paymentError, setPaymentError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   if (!isOpen) return null;
 
@@ -190,6 +193,13 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
   ) => {
     if (!customerName.trim() || !customerPhone.trim() || !customerAddress.trim()) return;
 
+    setIsProcessing(true);
+    setLoadingMessage(
+      lang === 'hi'
+        ? 'ऑर्डर सुरक्षित किया जा रहा है...'
+        : 'Saving your order in system...'
+    );
+
     const chosenMethod = overrideMethod || paymentMethod;
     let assignedOrderId = `JZ-${Math.floor(1050 + Math.random() * 8900)}`;
 
@@ -239,6 +249,8 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
       }
     } catch (err) {
       console.warn('Backend order sync notification:', err);
+    } finally {
+      setIsProcessing(false);
     }
 
     const newOrder: Order = {
@@ -312,10 +324,21 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
 
     if (paymentMethod === 'Razorpay') {
       setPaymentError('');
+      setIsProcessing(true);
+      setLoadingMessage(
+        lang === 'hi'
+          ? 'सुरक्षित Razorpay पेमेंट गेटवे लोड हो रहा है, कृपया प्रतीक्षा करें...'
+          : 'Connecting to Secure Razorpay Gateway...'
+      );
+
       const launchRazorpay = (orderId: string, serverKeyId?: string) => {
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined') {
+          setIsProcessing(false);
+          return;
+        }
         const RazorpayClass = (window as any).Razorpay;
         if (!RazorpayClass) {
+          setIsProcessing(false);
           alert(lang === 'hi' ? 'पेमेंट गेटवे लोड हो रहा है, कृपया 2 सेकंड बाद पुनः प्रयास करें।' : 'Payment gateway is loading, please try again.');
           return;
         }
@@ -337,6 +360,11 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
             color: '#b8860b'
           },
           handler: async function (response: any) {
+            setLoadingMessage(
+              lang === 'hi'
+                ? 'भुगतान सत्यापित किया जा रहा है...'
+                : 'Verifying payment...'
+            );
             if (response.razorpay_order_id && response.razorpay_signature) {
               try {
                 const vRes = await fetch('/api/verify-payment', {
@@ -350,10 +378,12 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                 });
                 const vData = await vRes.json();
                 if (!vRes.ok || !vData.success) {
+                  setIsProcessing(false);
                   setPaymentError(vData.message || 'Payment signature verification failed.');
                   return;
                 }
               } catch (err: any) {
+                setIsProcessing(false);
                 setPaymentError(err.message || 'Payment verification failed.');
                 return;
               }
@@ -367,9 +397,10 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
           },
           modal: {
             ondismiss: function () {
+              setIsProcessing(false);
               setPaymentError(
                 lang === 'hi'
-                  ? 'पेमेंट पूरा नहीं हुआ। आप दोबारा प्रयास कर सकते हैं या Cash on Delivery चुन सकते हैं।'
+                  ? 'पेमेंट विंडो बंद हो गई। आप दोबारा प्रयास कर सकते हैं या Cash on Delivery चुन सकते हैं।'
                   : 'Payment was dismissed. You can retry or choose Cash on Delivery (COD).'
               );
             }
@@ -378,6 +409,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
 
         const rzp = new RazorpayClass(options);
         rzp.on('payment.failed', function (resp: any) {
+          setIsProcessing(false);
           setPaymentError('Payment Failed: ' + (resp.error?.description || 'Transaction was declined.'));
         });
         rzp.open();
@@ -405,13 +437,14 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
         }
       })
       .catch((err) => {
+        setIsProcessing(false);
         setPaymentError(err.message || 'Payment service error. You can choose Cash on Delivery or retry.');
       });
 
       return;
     }
 
-    placeOrderNow();
+    placeOrderNow('COD');
   };
 
   return (
@@ -959,15 +992,46 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                   : `Proceed to Guest Checkout · ₹${total.toLocaleString('en-IN')}`}
               </button>
             ) : (
-              <button
-                type="submit"
-                form="guestCheckoutForm"
-                className="w-full py-3.5 px-6 rounded-lg bg-[#1C1917] hover:bg-stone-800 text-amber-300 font-semibold text-sm gpu-transition cursor-pointer"
-              >
-                {lang === 'hi'
-                  ? `ऑर्डर कन्फर्म करें (${paymentMethod}) · ₹${total.toLocaleString('en-IN')}`
-                  : `Place Order (${paymentMethod}) · ₹${total.toLocaleString('en-IN')}`}
-              </button>
+              <div className="space-y-2">
+                {isProcessing && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-center gap-2.5 text-xs text-amber-950 animate-pulse">
+                    <Loader2 className="w-4 h-4 text-[#B45309] animate-spin shrink-0" />
+                    <div className="leading-tight">
+                      <p className="font-semibold text-[#78350F]">{loadingMessage || (lang === 'hi' ? 'कृपया प्रतीक्षा करें...' : 'Please wait...')}</p>
+                      <p className="text-[11px] text-stone-600 mt-0.5">
+                        {lang === 'hi'
+                          ? 'गेटवे लोड हो रहा है, कृपया बैक या रिफ्रेश न करें।'
+                          : 'Connecting securely, please do not refresh.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  form="guestCheckoutForm"
+                  disabled={isProcessing}
+                  className={`w-full py-3.5 px-6 rounded-lg bg-[#1C1917] text-amber-300 font-semibold text-sm gpu-transition flex items-center justify-center gap-2 ${
+                    isProcessing
+                      ? 'opacity-85 cursor-not-allowed bg-stone-900'
+                      : 'hover:bg-stone-800 cursor-pointer shadow-md'
+                  }`}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-400" />
+                      <span>
+                        {paymentMethod === 'Razorpay'
+                          ? (lang === 'hi' ? 'पेमेंट गेटवे खुल रहा है...' : 'Opening Payment Gateway...')
+                          : (lang === 'hi' ? 'ऑर्डर प्रोसेस हो रहा है...' : 'Processing Order...')}
+                      </span>
+                    </>
+                  ) : (
+                    lang === 'hi'
+                      ? `ऑर्डर कन्फर्म करें (${paymentMethod}) · ₹${total.toLocaleString('en-IN')}`
+                      : `Place Order (${paymentMethod}) · ₹${total.toLocaleString('en-IN')}`
+                  )}
+                </button>
+              </div>
             )}
 
             <div className="flex items-center justify-center gap-2 text-[11px] text-stone-500">
