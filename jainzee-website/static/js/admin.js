@@ -216,10 +216,12 @@ function addGradeRow(name = '', price = '') {
     row.className = 'grade-row';
     row.style.cssText = 'display: flex; gap: 10px; margin-bottom: 8px;';
     row.innerHTML = `
-        <input type="text" class="grade-name" placeholder="Grade name (e.g. Premium)" style="flex: 1;" value="${name}">
-        <input type="text" class="grade-price" placeholder="Price (e.g. ₹1,500)" style="flex: 1;" value="${price}">
+        <input type="text" class="grade-name" aria-label="Grade and pack size" placeholder="e.g. W400 (500g) or 1kg" style="flex: 1; min-width: 0;">
+        <input type="text" class="grade-price" aria-label="Grade price in rupees" placeholder="e.g. 499" style="flex: 1; min-width: 0;">
         <button type="button" class="btn-sm btn-sm-delete" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
     `;
+    row.querySelector('.grade-name').value = name;
+    row.querySelector('.grade-price').value = price;
     container.appendChild(row);
 }
 
@@ -449,6 +451,7 @@ async function saveProduct(btn = null) {
         grades: getGradesFromForm()
     };
 
+    if (data.grades.length) data.price = data.grades[0].price;
     jzBusy(btn, true);
     try {
         let res;
@@ -555,6 +558,13 @@ async function saveQuickStock(btn = null) {
         grades: product.grades || '[]'
     };
 
+    if (rate) {
+        try {
+            const grades = typeof data.grades === 'string' ? JSON.parse(data.grades) : data.grades;
+            if (grades.length) grades[0].price = rate;
+            data.grades = grades;
+        } catch (e) { showToast('Invalid product grades. Edit the product to repair them.', 'error'); return; }
+    }
     jzBusy(btn, true);
     try {
         const res = await fetch(`/admin/api/products/${quickStockProductId}`, {

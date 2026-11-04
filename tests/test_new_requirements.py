@@ -145,9 +145,84 @@ def test_other_products_pricing(client):
     # Akhrot
     a_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Akhrot', [])}
     assert a_grades.get('1kg') == 899
-    assert a_grades.get('500g') == 949
+    assert a_grades.get('500g') == 449
 
     # Kishmish
     k_grades = {g['name']: int(float(re.sub(r'[^\d.]', '', str(g['price'])))) for g in p_map.get('Kishmish', [])}
     assert k_grades.get('1kg') == 549
     assert k_grades.get('500g') == 279
+
+
+def test_admin_catalog_edit_persists_after_restart(client):
+    app, c = client
+    c.post('/admin/login', data={'password': 'test-admin-pass-123'})
+    product = next(p for p in c.get('/api/products').get_json() if p['sku'] == 'CAS-001')
+    product_id = product['id']
+    product['name_en'] = 'Custom Cashew'
+    product['image'] = '/images/almonds.webp'
+    product['stock'] = 17
+    product['grades'] = [
+        {'name': 'W400 (1kg)', 'price': '888'},
+        {'name': 'W400 (500g)', 'price': '444'},
+        {'name': 'W180 (1kg)', 'price': '1200'},
+    ]
+    response = c.put(f'/admin/api/products/{product_id}', json=product)
+    assert response.status_code == 200
+    app.init_db()
+    products = c.get('/api/products').get_json()
+    saved = next(p for p in products if p['id'] == product_id)
+    assert saved['name_en'] == 'Custom Cashew'
+    assert saved['image'] == '/images/almonds.webp'
+    assert saved['stock'] == 17
+    assert saved['price'] == '₹888'
+    assert json.loads(saved['grades'])[2] == {'name': 'W180 (1kg)', 'price': '₹1200'}
+    assert sum(p['sku'] == 'CAS-001' for p in products) == 1
+
+
+def test_existing_catalog_migration_keeps_ids_and_stock(client):
+    app, c = client
+    conn = app.get_db()
+    old = conn.execute("SELECT id FROM products WHERE sku='AKH-001'").fetchone()['id']
+    conn.execute("DELETE FROM settings WHERE key='catalog_prices_2026_11_04'")
+    conn.execute("UPDATE products SET stock=23, grades=? WHERE id=?",
+                 (json.dumps([{'name': '500g', 'price': '₹949'}]), old))
+    conn.commit()
+    conn.close()
+    app.init_db()
+    saved = next(p for p in c.get('/api/products').get_json() if p['id'] == old)
+    assert saved['stock'] == 23
+    assert json.loads(saved['grades'])[1]['price'] == '₹449'
+
+
+@pytest.mark.parametrize('grades', [
+    'broken json', {}, [{'name': '500g', 'price': '-10'}],
+    [{'name': '500g', 'price': '10'}, {'name': '500g', 'price': '20'}],
+])
+def test_admin_rejects_invalid_variant_prices(client, grades):
+    _, c = client
+    c.post('/admin/login', data={'password': 'test-admin-pass-123'})
+    product = c.get('/api/products').get_json()[0]
+    product['grades'] = grades
+    assert c.put(f"/admin/api/products/{product['id']}", json=product).status_code == 400
+
+
+def test_catalogue_images_are_served(client):
+    _, c = client
+    for product in c.get('/api/products').get_json():
+        assert c.get(product['image']).status_code == 200, product['image']
+
+
+def test_checkout_preserves_selected_grade_and_price(client, monkeypatch):
+    app, c = client
+    monkeypatch.setattr(app, '_send_whatsapp_order_notification', lambda *args, **kwargs: None)
+    product = next(p for p in c.get('/api/products').get_json() if p['sku'] == 'CAS-001')
+    assert c.post('/api/cart', json={'product_id': product['id'], 'quantity': 2, 'grade_index': 7}).status_code == 200
+    response = c.post('/api/checkout', json={
+        'name': 'Test Buyer', 'phone': '9876543210', 'address': 'Indore', 'payment_method': 'cod',
+    })
+    assert response.status_code == 200
+    conn = app.get_db()
+    order = conn.execute('SELECT * FROM orders WHERE id=?', (response.get_json()['order_id'],)).fetchone()
+    conn.close()
+    assert float(order['subtotal']) == 1002
+    assert 'W260 (500g)' in order['items']

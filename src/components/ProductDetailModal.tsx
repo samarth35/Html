@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Star, ShoppingBag, ShieldCheck, Check, Plus, Minus, Truck } from 'lucide-react';
 import { Language, Product } from '../types';
+import { GradeSelector } from './GradeSelector';
 
 interface ProductDetailModalProps {
   lang: Language;
@@ -219,119 +220,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     {lang === 'hi' ? product.description_hi : product.description_en}
                   </p>
 
-                  {/* Grade & Weight Selection */}
-                  {product.category === 'cashews' && product.grades.length > 2 ? (
-                    <div className="space-y-3 pt-1">
-                      <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                            {lang === 'hi' ? 'काजू ग्रेड चुनें:' : 'Select Cashew Grade:'}
-                          </label>
-                          <span className="text-xs font-semibold text-amber-800">
-                            {activeGrade.label}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
-                          {['W400', 'Wmix', 'W320', 'W260', 'W240', 'W210', 'JK', 'JH'].map((code) => {
-                            const currentWeight = activeGrade.label.includes('500') ? '500g' : '1kg';
-                            const isSelected = activeGrade.label.toUpperCase().includes(code.toUpperCase());
-                            const match = product.grades.find(
-                              (g) => g.label.toUpperCase().includes(code.toUpperCase()) && g.label.includes(currentWeight)
-                            ) || product.grades.find((g) => g.label.toUpperCase().includes(code.toUpperCase()));
-                            return (
-                              <button
-                                key={code}
-                                type="button"
-                                onClick={() => {
-                                  const targetIdx = product.grades.findIndex(
-                                    (g) => g.label.toUpperCase().includes(code.toUpperCase()) && g.label.includes(currentWeight)
-                                  );
-                                  if (targetIdx !== -1) setGradeIndex(targetIdx);
-                                }}
-                                className={`p-2 rounded-xl border text-center transition-colors cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-amber-400 border-amber-500 text-stone-950 font-bold ring-2 ring-amber-500'
-                                    : 'bg-white border-stone-200 text-stone-700 hover:border-amber-400'
-                                }`}
-                              >
-                                <p className="text-xs font-bold leading-tight">{code}</p>
-                                <p className="font-mono text-[11px] opacity-90 mt-0.5">
-                                  {match ? `₹${match.price}` : ''}
-                                </p>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Weight Pack Selector (1kg vs 500g) */}
-                      <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
-                          {lang === 'hi' ? 'वजन पैक चुनें:' : 'Select Pack Size:'}
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {['1kg', '500g'].map((wt) => {
-                            const isSelected = activeGrade.label.includes(wt);
-                            const currentCode =
-                              ['W400', 'Wmix', 'W320', 'W260', 'W240', 'W210', 'JK', 'JH'].find((c) =>
-                                activeGrade.label.toUpperCase().includes(c.toUpperCase())
-                              ) || 'W400';
-                            const match = product.grades.find(
-                              (g) => g.label.toUpperCase().includes(currentCode.toUpperCase()) && g.label.includes(wt)
-                            );
-                            return (
-                              <button
-                                key={wt}
-                                type="button"
-                                onClick={() => {
-                                  const targetIdx = product.grades.findIndex(
-                                    (g) => g.label.toUpperCase().includes(currentCode.toUpperCase()) && g.label.includes(wt)
-                                  );
-                                  if (targetIdx !== -1) setGradeIndex(targetIdx);
-                                }}
-                                className={`p-2.5 rounded-xl border text-center transition-colors cursor-pointer flex items-center justify-center gap-2 ${
-                                  isSelected
-                                    ? 'bg-stone-950 border-stone-950 text-amber-300 font-semibold'
-                                    : 'bg-white border-stone-200 text-stone-700 hover:border-stone-300'
-                                }`}
-                              >
-                                <span className="text-xs font-semibold">{wt} Pack</span>
-                                {match && <span className="font-mono text-xs font-bold">₹{match.price}</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                        {lang === 'hi' ? 'वजन और ग्रेड चुनें' : 'Select Weight / Grade'}
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                        {product.grades.map((grade, idx) => {
-                          const selected = idx === gradeIndex;
-                          return (
-                            <button
-                              key={grade.label}
-                              type="button"
-                              onClick={() => setGradeIndex(idx)}
-                              className={`p-2.5 rounded-lg border text-left transition-colors cursor-pointer ${
-                                selected
-                                  ? 'bg-white border-[#B45309] ring-1 ring-[#B45309]'
-                                  : 'bg-white/60 border-stone-200 hover:border-stone-300'
-                              }`}
-                            >
-                              <p className="text-xs font-semibold text-stone-900">{grade.label}</p>
-                              <p className="font-mono text-sm font-semibold text-[#B45309] mt-0.5 tabular-nums">
-                                ₹{grade.price.toLocaleString('en-IN')}
-                              </p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  <GradeSelector product={product} selectedIndex={gradeIndex} lang={lang} onChange={setGradeIndex} />
 
                   {/* Quantity & Primary Purchase CTA */}
                   <div className="pt-2 flex flex-wrap items-center gap-3">

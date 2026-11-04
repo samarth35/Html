@@ -764,53 +764,58 @@ def init_db():
     conn.commit()
 
 
-    cur.executemany(
-        """INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, grades)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        [
-            ('Premium Cashew (Kaju)', 'प्रीमियम काजू', '₹879', '1kg / 500g',
-             'Large, creamy and hygienically graded premium whole cashews in all 8 export & wholesale grades (W400, Wmix, W320, W260, W240, W210, JK & JH). Choose your desired grade and pack size (1kg or 500g).',
-             'बड़े, क्रीमी और स्वच्छ रूप से ग्रेड किए गए प्रीमियम काजू — सभी 8 ग्रेड (W400, Wmix, W320, W260, W240, W210, JK और JH) में उपलब्ध।',
-             '/static/uploads/cashew.jpg', 200, '₹999', 'CAS-001',
-             '[{"name":"W400 (1kg)","price":"₹879"},{"name":"W400 (500g)","price":"₹499"},{"name":"Wmix (1kg)","price":"₹899"},{"name":"Wmix (500g)","price":"₹455"},{"name":"W320 (1kg)","price":"₹949"},{"name":"W320 (500g)","price":"₹479"},{"name":"W260 (1kg)","price":"₹999"},{"name":"W260 (500g)","price":"₹501"},{"name":"W240 (1kg)","price":"₹1030"},{"name":"W240 (500g)","price":"₹519"},{"name":"W210 Jumbo (1kg)","price":"₹1099"},{"name":"W210 Jumbo (500g)","price":"₹499"},{"name":"JK Grade (1kg)","price":"₹879"},{"name":"JK Grade (500g)","price":"₹449"},{"name":"JH Split (1kg)","price":"₹920"},{"name":"JH Split (500g)","price":"₹469"}]'),
+    if not cur.execute('SELECT id FROM products LIMIT 1').fetchone() and not cur.execute(
+        "SELECT value FROM settings WHERE key='catalog_prices_2026_11_04'"
+    ).fetchone():
+        cur.executemany(
+            """INSERT OR IGNORE INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, grades)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                ('Premium Cashew (Kaju)', 'प्रीमियम काजू', '₹879', '1kg / 500g',
+                 'Large, creamy and hygienically graded premium whole cashews in all 8 export & wholesale grades (W400, Wmix, W320, W260, W240, W210, JK & JH). Choose your desired grade and pack size (1kg or 500g).',
+                 'बड़े, क्रीमी और स्वच्छ रूप से ग्रेड किए गए प्रीमियम काजू — सभी 8 ग्रेड (W400, Wmix, W320, W260, W240, W210, JK और JH) में उपलब्ध।',
+                 '/images/cashew.jpeg', 200, '₹999', 'CAS-001',
+                 '[{"name":"W400 (1kg)","price":"₹879"},{"name":"W400 (500g)","price":"₹499"},{"name":"Wmix (1kg)","price":"₹899"},{"name":"Wmix (500g)","price":"₹455"},{"name":"W320 (1kg)","price":"₹949"},{"name":"W320 (500g)","price":"₹479"},{"name":"W260 (1kg)","price":"₹999"},{"name":"W260 (500g)","price":"₹501"},{"name":"W240 (1kg)","price":"₹1030"},{"name":"W240 (500g)","price":"₹519"},{"name":"W210 Jumbo (1kg)","price":"₹1099"},{"name":"W210 Jumbo (500g)","price":"₹499"},{"name":"JK Grade (1kg)","price":"₹879"},{"name":"JK Grade (500g)","price":"₹449"},{"name":"JH Split (1kg)","price":"₹920"},{"name":"JH Split (500g)","price":"₹469"}]'),
 
-            ('Makhana', 'मखाना', '₹1349', '1kg / 500g',
-             'Premium fox nuts (Makhana) – light, crunchy and highly nutritious. Great for roasting.',
-             'प्रीमियम मखाना – हल्का, कुरकुरा और अत्यधिक पौष्टिक। भूनने के लिए बढ़िया।',
-             '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png', 100, '₹1549', 'MAK-001',
-             '[{"name":"1kg","price":"₹1349"},{"name":"500g","price":"₹679"}]'),
+                ('Makhana', 'मखाना', '₹1349', '1kg / 500g',
+                 'Premium fox nuts (Makhana) – light, crunchy and highly nutritious. Great for roasting.',
+                 'प्रीमियम मखाना – हल्का, कुरकुरा और अत्यधिक पौष्टिक। भूनने के लिए बढ़िया।',
+                 '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png', 100, '₹1549', 'MAK-001',
+                 '[{"name":"1kg","price":"₹1349"},{"name":"500g","price":"₹679"}]'),
 
-            ('Badam', 'बादाम', '₹1249', '1kg / 500g',
-             'California almonds – hand-sorted, rich in protein, fiber and healthy fats.',
-             'कैलिफोर्निया बादाम – हाथ से छाँटे, प्रोटीन, फाइबर और स्वस्थ वसा से भरपूर।',
-             '/static/uploads/almonds.jpg', 150, '₹1449', 'BAD-001',
-             '[{"name":"1kg","price":"₹1249"},{"name":"500g","price":"₹629"}]'),
+                ('Badam', 'बादाम', '₹1249', '1kg / 500g',
+                 'California almonds – hand-sorted, rich in protein, fiber and healthy fats.',
+                 'कैलिफोर्निया बादाम – हाथ से छाँटे, प्रोटीन, फाइबर और स्वस्थ वसा से भरपूर।',
+                 '/images/almonds.webp', 150, '₹1449', 'BAD-001',
+                 '[{"name":"1kg","price":"₹1249"},{"name":"500g","price":"₹629"}]'),
 
-            ('Akhrot', 'अखरोट', '₹899', '1kg / 500g',
-             'Whole walnuts – rich in Omega-3 fatty acids and antioxidants. NOTE: 500g price (₹949) exceeds 1kg price (₹899) as specified.',
-             'साबुत अखरोट – ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।',
-             '/static/uploads/walnuts.jpg', 100, '₹1049', 'AKH-001',
-             '[{"name":"1kg","price":"₹899"},{"name":"500g","price":"₹949"}]'),
+                ('Akhrot', 'अखरोट', '₹899', '1kg / 500g',
+                 'Whole walnuts – rich in Omega-3 fatty acids and antioxidants.',
+                 'साबुत अखरोट – ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।',
+                 '/images/walnuts.webp', 100, '₹1049', 'AKH-001',
+                 '[{"name":"1kg","price":"₹899"},{"name":"500g","price":"₹449"}]'),
 
-            ('Kishmish', 'किशमिश', '₹549', '1kg / 500g',
-             'Premium golden raisins, naturally sun-dried. Sweet and full of natural energy.',
-             'प्रीमियम गोल्डन किशमिश, प्राकृतिक रूप से धूप में सुखाई गई। मीठी और प्राकृतिक ऊर्जा से भरपूर।',
-             '/static/uploads/raisins.jpg', 200, '₹649', 'KIS-001',
-             '[{"name":"1kg","price":"₹549"},{"name":"500g","price":"₹279"}]'),
+                ('Kishmish', 'किशमिश', '₹549', '1kg / 500g',
+                 'Premium golden raisins, naturally sun-dried. Sweet and full of natural energy.',
+                 'प्रीमियम गोल्डन किशमिश, प्राकृतिक रूप से धूप में सुखाई गई। मीठी और प्राकृतिक ऊर्जा से भरपूर।',
+                 '/images/raisins.webp', 200, '₹649', 'KIS-001',
+                 '[{"name":"1kg","price":"₹549"},{"name":"500g","price":"₹279"}]'),
 
-            ('Pistachio (Pista)', 'पिस्ता (Pista)', '₹899', '500g / 1kg',
-             'Premium roasted and lightly salted Iranian pistachios.',
-             'प्रीमियम रोस्टेड और नमकीन ईरानी पिस्ता।',
-             '/static/uploads/pistachio.jpg', 80, '₹1099', 'PIS-001',
-             '[{"name":"500g","price":"₹899"},{"name":"1kg","price":"₹1699"}]'),
+                ('Pistachio (Pista)', 'पिस्ता (Pista)', '₹899', '500g / 1kg',
+                 'Premium roasted and lightly salted Iranian pistachios.',
+                 'प्रीमियम रोस्टेड और नमकीन ईरानी पिस्ता।',
+                 '/images/pistachio.webp', 80, '₹1099', 'PIS-001',
+                 '[{"name":"500g","price":"₹899"},{"name":"1kg","price":"₹1699"}]'),
 
-            ('Diwali Special Royal 4-Jar Gift Box', 'दिवाली स्पेशल रॉयल 4-जार गिफ्ट बॉक्स', '₹1350', 'Luxury Gift Box',
-             'Handcrafted Royal Peacock Palace wooden gift box with 4 airtight gold glass jars filled with Cashews, Almonds, Pistachios & Kishmish.',
-             'रॉयल मयूर गिफ्ट बॉक्स (4 गोल्ड ग्लास जार के साथ)।',
-             '/static/uploads/diwali-gift-box.jpg', 50, '₹1699', 'DIW-001',
-             '[{"name":"Royal 4-Jar Box","price":"₹1350"}]'),
-        ]
-    )
+                ('Diwali Special Royal 4-Jar Gift Box', 'दिवाली स्पेशल रॉयल 4-जार गिफ्ट बॉक्स', '₹1350', 'Luxury Gift Box',
+                 'Handcrafted Royal Peacock Palace wooden gift box with 4 airtight gold glass jars filled with Cashews, Almonds, Pistachios & Kishmish.',
+                 'रॉयल मयूर गिफ्ट बॉक्स (4 गोल्ड ग्लास जार के साथ)।',
+                 '/images/diwali-gift-box.jpg', 50, '₹1699', 'DIW-001',
+                 '[{"name":"Royal 4-Jar Box","price":"₹1350"}]'),
+            ]
+        )
+    from catalog_migration import apply_catalog_update
+    apply_catalog_update(cur)
     # Customer OTP login table
     cur.execute('''CREATE TABLE IF NOT EXISTS customer_otps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2569,6 +2574,27 @@ def admin_gallery_page():
 
 # ---------------- ADMIN API ----------------
 
+def validate_product_grades(raw):
+    try:
+        grades = json.loads(raw) if isinstance(raw, str) else raw
+    except (ValueError, TypeError):
+        raise ValueError('Grades must be a JSON list of names and prices.')
+    if not isinstance(grades, list):
+        raise ValueError('Grades must be a list.')
+    seen = set()
+    cleaned = []
+    for grade in grades:
+        if not isinstance(grade, dict):
+            raise ValueError('Every grade needs a name and a positive price.')
+        name = str(grade.get('name', '')).strip()
+        price = str(grade.get('price', '')).strip().replace('₹', '').replace(',', '')
+        if not name or name.casefold() in seen or not re.fullmatch(r'\d+(?:\.\d{1,2})?', price) or float(price) <= 0:
+            raise ValueError('Each grade needs a unique name and a positive price in rupees.')
+        seen.add(name.casefold())
+        cleaned.append({**grade, 'name': name, 'price': f'₹{price}'})
+    return json.dumps(cleaned, ensure_ascii=False)
+
+
 @app.route('/admin/api/products', methods=['GET', 'POST'])
 @login_required
 def admin_api_products():
@@ -2587,10 +2613,14 @@ def admin_api_products():
             stock = int(data.get('stock', 0))
         except (ValueError, TypeError):
             stock = 0
-        grades_json = data.get('grades', '[]')
-        if isinstance(grades_json, list):
-            import json as json_mod
-            grades_json = json_mod.dumps(grades_json)
+        try:
+            grades_json = validate_product_grades(data.get('grades', '[]'))
+        except ValueError as exc:
+            conn.close()
+            return jsonify({'error': str(exc)}), 400
+        grades = json.loads(grades_json)
+        if grades:
+            data['price'] = grades[0]['price']
         cur = conn.execute(
             'INSERT INTO products (name_en, name_hi, price, weight, description_en, description_hi, image, stock, old_price, sku, video, grades) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             (name_en, name_hi, data.get('price', ''), data.get('weight', ''),
@@ -2612,10 +2642,14 @@ def admin_api_product(pid):
             stock = int(data.get('stock', 0))
         except (ValueError, TypeError):
             stock = 0
-        grades_json = data.get('grades', '[]')
-        if isinstance(grades_json, list):
-            import json as json_mod
-            grades_json = json_mod.dumps(grades_json)
+        try:
+            grades_json = validate_product_grades(data.get('grades', '[]'))
+        except ValueError as exc:
+            conn.close()
+            return jsonify({'error': str(exc)}), 400
+        grades = json.loads(grades_json)
+        if grades:
+            data['price'] = grades[0]['price']
         conn.execute(
             'UPDATE products SET name_en=?, name_hi=?, price=?, weight=?, description_en=?, description_hi=?, image=?, stock=?, old_price=?, sku=?, video=?, grades=? WHERE id=?',
             (data.get('name_en', ''), data.get('name_hi', ''), data.get('price', ''),
