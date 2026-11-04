@@ -365,11 +365,10 @@ def get_config_setting(key, default=''):
             val = str(row['value']).strip()
     except Exception:
         pass
-    # Guard against legacy revoked test credentials
-    if key == 'razorpay_key_id' and (not val or val == 'rzp_test_TvNiX34TPC0UOV'):
-        val = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
-    elif key == 'razorpay_key_secret' and not val:
-        val = os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
+    if key == 'razorpay_key_id':
+        return os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    elif key == 'razorpay_key_secret':
+        return os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
     if val:
         return val
     env_val = os.environ.get(key.upper()) or os.environ.get(key)
@@ -1255,8 +1254,7 @@ def api_site():
     for r in rows:
         if r['key'] in PUBLIC_SETTINGS_KEYS:
             data[r['key']] = r['value']
-    if 'razorpay_key_id' in data and not data['razorpay_key_id']:
-        data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID', '')
+    data['razorpay_key_id'] = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
     return jsonify(data)
 
 @app.route('/admin/api/settings')
@@ -3369,8 +3367,8 @@ def api_cart_count():
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
-    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
-    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
+    key_id = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    key_secret = os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
