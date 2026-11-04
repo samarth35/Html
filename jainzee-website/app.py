@@ -4157,6 +4157,14 @@ def api_product_reviews(product_id):
         
         if not customer_name:
             customer_name = 'Verified Buyer'
+
+        existing_review = conn.execute(
+            'SELECT id FROM product_reviews WHERE product_id=? AND customer_phone=?',
+            (product_id, customer_phone),
+        ).fetchone()
+        if existing_review:
+            conn.close()
+            return jsonify({'error': 'You already reviewed this product. Edit your existing review instead.'}), 400
         
         # Insert review
         conn.execute(
