@@ -59,4 +59,12 @@ if (fs.existsSync(publicSitemap)) {
   fs.copyFileSync(publicSitemap, path.join(distDir, 'sitemap.xml'));
 }
 
+// 5. Ensure favicon is synced
+const publicFavicon = path.join(rootDir, 'public', 'favicon.ico');
+const staticFavicon = path.join(rootDir, 'jainzee-website', 'static', 'favicon.ico');
+if (fs.existsSync(publicFavicon)) {
+  fs.copyFileSync(publicFavicon, staticFavicon);
+  fs.copyFileSync(publicFavicon, path.join(distDir, 'favicon.ico'));
+}
+
 console.log('[SYNC COMPLETE] Build artifacts successfully synchronized with Flask backend!');

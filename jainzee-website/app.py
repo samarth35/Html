@@ -1174,6 +1174,10 @@ def refund_policy():
 
 # ---------------- PUBLIC ROUTES ----------------
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(BASE_DIR, 'static'), 'favicon.ico', mimetype='image/png')
+
 @app.route('/robots.txt')
 def robots_txt():
     content = "User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n\nSitemap: https://jainzeefoods-jainzee.vercel.app/sitemap.xml\n"

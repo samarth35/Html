@@ -99,37 +99,28 @@ export default function App() {
       .then((res) => (res.ok ? res.json() : null))
       .then((serverProducts) => {
         if (Array.isArray(serverProducts) && serverProducts.length > 0) {
-          const mapped: Product[] = serverProducts.map((sp: any) => {
-            let parsedGrades: any[] = [];
-            try {
-              parsedGrades = typeof sp.grades === 'string' ? JSON.parse(sp.grades) : sp.grades;
-            } catch {}
-            if (!Array.isArray(parsedGrades) || parsedGrades.length === 0) {
-              const basePrice = Number(String(sp.price || '0').replace(/[^\d.]/g, '')) || 0;
-              parsedGrades = [
-                {
-                  label: sp.weight || 'Standard Pack',
-                  weight: sp.weight || '500g',
-                  price: basePrice,
-                  inStock: (sp.stock ?? 10) > 0,
-                },
-              ];
-            }
-            return {
-              id: sp.id,
-              name_en: sp.name_en,
-              name_hi: sp.name_hi,
-              description_en: sp.description_en,
-              description_hi: sp.description_hi,
-              sku: sp.sku || `JZ-${sp.id}`,
-              image: sp.image,
-              stock: sp.stock ?? 50,
-              grades: parsedGrades,
-              rating: 4.9,
-              reviewCount: 38,
-            };
-          });
-          setProducts(mapped);
+          setProducts((prev) =>
+            prev.map((existing) => {
+              const sp = serverProducts.find((p: any) => p.id === existing.id);
+              if (!sp) return existing;
+              const spPrice = Number(String(sp.price || '').replace(/[^\d.]/g, '')) || existing.grades[0]?.price;
+              const spOldPrice = Number(String(sp.old_price || '').replace(/[^\d.]/g, '')) || existing.grades[0]?.oldPrice;
+              return {
+                ...existing,
+                name_en: sp.name_en || existing.name_en,
+                name_hi: sp.name_hi || existing.name_hi,
+                description_en: sp.description_en || existing.description_en,
+                description_hi: sp.description_hi || existing.description_hi,
+                stock: sp.stock !== undefined ? Number(sp.stock) : existing.stock,
+                image: sp.image || existing.image,
+                grades: existing.grades.map((g, idx) =>
+                  idx === 0
+                    ? { ...g, price: spPrice || g.price, oldPrice: spOldPrice || g.oldPrice }
+                    : g
+                ),
+              };
+            })
+          );
         }
       })
       .catch(() => {});

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Search, PackageCheck, RotateCcw, Printer, CheckCircle2, Truck } from 'lucide-react';
 import { Language, Order } from '../types';
 import { STORE_INFO } from '../data/storeData';
