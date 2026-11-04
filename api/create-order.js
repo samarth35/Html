@@ -4,12 +4,8 @@ export default async function handler(req, res) {
   }
 
   const { amount, currency = 'INR', receipt } = req.body || {};
-  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
-  const key_secret = process.env.RAZORPAY_KEY_SECRET;
-
-  if (!key_id || !key_secret) {
-    return res.status(500).json({ error: 'Razorpay keys not configured on server' });
-  }
+  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TvorDloFWDaxeT';
+  const key_secret = process.env.RAZORPAY_KEY_SECRET || 'LYwVCkTtjBheXJMaq7W9EDms';
 
   if (!amount || amount < 100) {
     return res.status(400).json({ error: 'Amount must be at least 100 paise (₹1)' });

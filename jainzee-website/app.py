@@ -367,9 +367,9 @@ def get_config_setting(key, default=''):
         pass
     # Guard against legacy revoked test credentials
     if key == 'razorpay_key_id' and (not val or val == 'rzp_test_TvNiX34TPC0UOV'):
-        val = os.environ.get('RAZORPAY_KEY_ID', '')
+        val = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
     elif key == 'razorpay_key_secret' and not val:
-        val = os.environ.get('RAZORPAY_KEY_SECRET', '')
+        val = os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
     if val:
         return val
     env_val = os.environ.get(key.upper()) or os.environ.get(key)
@@ -756,12 +756,10 @@ def init_db():
     cur.execute("UPDATE settings SET value='Jainzee™ Food Processing Industries' WHERE key='shop_name_en' AND value NOT LIKE '%™%'")
     cur.execute("UPDATE settings SET value='जैनज़ी™ फूड प्रोसेसिंग इंडस्ट्रीज़' WHERE key='shop_name_hi' AND value NOT LIKE '%™%'")
 
-    rzp_id = os.environ.get('RAZORPAY_KEY_ID', '')
-    rzp_secret = os.environ.get('RAZORPAY_KEY_SECRET', '')
-    if rzp_id:
-        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_id', ?)", (rzp_id,))
-    if rzp_secret:
-        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_secret', ?)", (rzp_secret,))
+    rzp_id = os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    rzp_secret = os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_id', ?)", (rzp_id,))
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('razorpay_key_secret', ?)", (rzp_secret,))
     conn.commit()
 
 
@@ -3371,8 +3369,8 @@ def api_cart_count():
 @app.route('/api/razorpay/create-order', methods=['POST'])
 def api_razorpay_create_order():
     """Create a Razorpay order for online payment."""
-    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID', '')
-    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET', '')
+    key_id = get_config_setting('razorpay_key_id') or os.environ.get('RAZORPAY_KEY_ID') or 'rzp_live_TvorDloFWDaxeT'
+    key_secret = get_config_setting('razorpay_key_secret') or os.environ.get('RAZORPAY_KEY_SECRET') or 'LYwVCkTtjBheXJMaq7W9EDms'
 
     data = request.get_json() or {}
     cart = session.get('cart', [])
@@ -3549,6 +3547,7 @@ def api_verify_payment():
     candidate_secrets = [
         os.environ.get('RAZORPAY_KEY_SECRET'),
         get_config_setting('razorpay_key_secret'),
+        'LYwVCkTtjBheXJMaq7W9EDms',
     ]
     verified = False
     for secret in filter(None, candidate_secrets):
@@ -3593,6 +3592,7 @@ def api_checkout():
         candidate_secrets = [
             os.environ.get('RAZORPAY_KEY_SECRET'),
             get_config_setting('razorpay_key_secret'),
+            'LYwVCkTtjBheXJMaq7W9EDms',
         ]
         verified = False
         for secret in filter(None, candidate_secrets):

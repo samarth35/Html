@@ -321,7 +321,7 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
         }
 
         const options: any = {
-          key: serverKeyId || settings.razorpayKeyId || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || '',
+          key: serverKeyId || settings.razorpayKeyId || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_live_TvorDloFWDaxeT',
           amount: Math.round(total * 100),
           currency: 'INR',
           name: 'Jainzee™ Food Processing Industries',
