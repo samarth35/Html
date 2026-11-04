@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CartItem, Coupon, Language, Order, Product, StoreSettings } from '../types';
 import { calculateKmDeliveryCharge, calculateOrderShippingCharge, STORE_INFO } from '../data/storeData';
+import { ProductImage } from './ProductImage';
 
 interface CartCheckoutDrawerProps {
   isOpen: boolean;
@@ -563,8 +564,8 @@ export const CartCheckoutDrawer: React.FC<CartCheckoutDrawerProps> = ({
                         key={`${item.productId}-${item.gradeIndex}`}
                         className="p-4 rounded-xl bg-white border border-stone-200 flex items-center gap-4"
                       >
-                        <img
-                          src={item.product.image}
+                        <ProductImage
+                          product={item.product}
                           alt={item.product.name_en}
                           referrerPolicy="no-referrer"
                           className="w-16 h-16 rounded-lg object-cover border border-stone-200 shrink-0"

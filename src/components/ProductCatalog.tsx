@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Language, Product } from '../types';
 import { GradeSelector } from './GradeSelector';
+import { ProductImage } from './ProductImage';
 
 interface ProductCatalogProps {
   lang: Language;
@@ -232,8 +233,8 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <img
-                          src={product.image}
+                        <ProductImage
+                          product={product}
                           alt={lang === 'hi' ? product.name_hi : product.name_en}
                           loading="lazy"
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"

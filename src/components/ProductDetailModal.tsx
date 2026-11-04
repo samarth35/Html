@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Star, ShoppingBag, ShieldCheck, Check, Plus, Minus, Truck } from 'lucide-react';
 import { Language, Product } from '../types';
 import { GradeSelector } from './GradeSelector';
+import { ProductImage } from './ProductImage';
 
 interface ProductDetailModalProps {
   lang: Language;
@@ -106,8 +107,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <img
-                  src={product.image}
+                <ProductImage
+                  product={product}
                   alt={lang === 'hi' ? product.name_hi : product.name_en}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"

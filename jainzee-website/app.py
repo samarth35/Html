@@ -1519,6 +1519,19 @@ def api_products():
 
 @app.route('/static/uploads/<path:filename>')
 def uploaded_file(filename):
+    # Older catalogues refer to filenames that were never shipped in uploads.
+    # Keep those URLs working even if the database/cache predates the migration.
+    # An actual uploaded file always takes precedence over the bundled image.
+    legacy_images = {
+        'cashew.jpg': 'cashew.jpeg',
+        'almonds.jpg': 'almonds.webp',
+        'walnuts.jpg': 'walnuts.webp',
+        'raisins.jpg': 'raisins.webp',
+        'pistachio.jpg': 'pistachio.webp',
+        'diwali-gift-box.jpg': 'diwali-gift-box.jpg',
+    }
+    if filename in legacy_images and not os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], filename)):
+        return send_from_directory(os.path.join(BASE_DIR, 'static', 'images'), legacy_images[filename])
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/assets/<path:filename>')

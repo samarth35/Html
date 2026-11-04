@@ -308,3 +308,24 @@ def test_authenticated_admin_still_requires_csrf_token(client):
     token = c.get_cookie('csrf_token').value
     assert c.put(f"/admin/api/products/{product['id']}", json=product,
                  headers={'X-CSRF-TOKEN': token}).status_code == 200
+
+
+@pytest.mark.parametrize('filename', [
+    'cashew.jpg', 'almonds.jpg', 'walnuts.jpg', 'raisins.jpg',
+    'pistachio.jpg', 'diwali-gift-box.jpg',
+])
+def test_legacy_database_photo_urls_keep_working(client, filename):
+    _, c = client
+    response = c.get(f'/static/uploads/{filename}')
+    assert response.status_code == 200
+    assert response.mimetype.startswith('image/')
+
+
+def test_existing_uploaded_photo_takes_precedence(client, tmp_path, monkeypatch):
+    app, c = client
+    photo = tmp_path / 'cashew.jpg'
+    photo.write_bytes(b'custom uploaded photograph')
+    monkeypatch.setitem(app.app.config, 'UPLOAD_FOLDER', str(tmp_path))
+    response = c.get('/static/uploads/cashew.jpg')
+    assert response.status_code == 200
+    assert response.data == b'custom uploaded photograph'
