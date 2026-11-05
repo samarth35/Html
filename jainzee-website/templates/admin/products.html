@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products & Stock - Jainzee Admin</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}?v=catalog-20261104">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}?v=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -146,7 +146,8 @@
                     </div>
                 </div>
                 <div class="form-group full-width">
-                    <label>Grading Options (Premium / Standard / Budget with prices)</label>
+                    <label>Grades &amp; Pack Prices (₹)</label>
+                    <p style="font-size: 0.8rem; margin-bottom: 10px;">Edit each grade and pack price below, for example W400 (1kg) and W400 (500g). These prices appear on the storefront. The first option sets the base rate. Upload or paste a photo above, then Save Product.</p>
                     <div id="gradesContainer">
                         <div class="grade-row" style="display: flex; gap: 10px; margin-bottom: 8px;">
                             <input type="text" class="grade-name" placeholder="Grade name (e.g. Premium)" style="flex: 1;">
@@ -205,6 +206,6 @@
 
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}?v=catalog-20261104"></script>
 </body>
 </html>

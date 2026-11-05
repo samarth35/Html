@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import { CartItem, Coupon, Language, Order, Product, StoreSettings } from './types';
+import { CartItem, Coupon, Language, Order, Product, ProductGrade, StoreSettings } from './types';
 import {
   AVAILABLE_COUPONS,
   DEFAULT_STORE_SETTINGS,
@@ -19,7 +19,6 @@ import { RoasteryAndStorySection } from './components/RoasteryAndStorySection';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { CartCheckoutDrawer } from './components/CartCheckoutDrawer';
 import { OrderTrackerModal } from './components/OrderTrackerModal';
-import { AuditAndDeployModal } from './components/AuditAndDeployModal';
 import { DiwaliSpecialPopup } from './components/DiwaliSpecialPopup';
 import { OrderSuccessPopup } from './components/OrderSuccessPopup';
 import { Footer } from './components/Footer';
@@ -34,7 +33,7 @@ export default function App() {
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
-      const saved = localStorage.getItem('jainzee_products_v12');
+      const saved = localStorage.getItem('jainzee_products_v13');
       if (saved) return JSON.parse(saved);
     } catch {}
     return INITIAL_PRODUCTS;
@@ -98,19 +97,10 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Purge old cached product versions to ensure live ads and visitors see the latest 16-grade cashews and prices
-    for (let i = 1; i <= 11; i++) {
-      try {
-        localStorage.removeItem(`jainzee_products_v${i}`);
-      } catch {}
-    }
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/products')
+    const refreshProducts = () => fetch('/api/products', { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((serverProducts) => {
-        if (Array.isArray(serverProducts) && serverProducts.length > 0) {
+        if (Array.isArray(serverProducts)) {
           const mapped: Product[] = serverProducts.map((sp: any) => {
             let parsedGrades: ProductGrade[] = [];
             try {
@@ -118,31 +108,14 @@ export default function App() {
               if (Array.isArray(gList) && gList.length > 0) {
                 parsedGrades = gList.map((g: any) => ({
                   label: g.name || g.label || '1kg',
-                  weightGrams: (g.name || g.label || '').includes('500') ? 500 : 1000,
+                  weightGrams: Number(g.weightGrams) || ((g.name || g.label || '').includes('500') ? 500 : 1000),
                   price: Number(String(g.price || '').replace(/[^\d.]/g, '')) || 0,
                   oldPrice: Number(String(g.old_price || g.oldPrice || '').replace(/[^\d.]/g, '')) || Math.round((Number(String(g.price || '').replace(/[^\d.]/g, '')) || 0) * 1.15),
                 }));
               }
             } catch {}
 
-            const existing = INITIAL_PRODUCTS.find(
-              (p) =>
-                p.name_en.toLowerCase() === (sp.name_en || '').toLowerCase() ||
-                p.id === sp.id ||
-                p.sku.toLowerCase() === (sp.sku || '').toLowerCase()
-            );
-
-            // Cashew protection: If server has empty or incomplete grades, protect with all 16 canonical grades
-            const isCashew =
-              (sp.name_en || '').toLowerCase().includes('cashew') ||
-              (existing && existing.category === 'cashews');
-
-            if (isCashew && (parsedGrades.length < 16 || parsedGrades.length === 0)) {
-              const cashewCanon = INITIAL_PRODUCTS.find((p) => p.category === 'cashews');
-              if (cashewCanon) parsedGrades = cashewCanon.grades;
-            } else if (parsedGrades.length === 0 && existing && existing.grades && existing.grades.length > 0) {
-              parsedGrades = existing.grades;
-            } else if (parsedGrades.length === 0) {
+            if (parsedGrades.length === 0) {
               const basePrice = Number(String(sp.price || '').replace(/[^\d.]/g, '')) || 999;
               const oldPrice = Number(String(sp.old_price || '').replace(/[^\d.]/g, '')) || Math.round(basePrice * 1.15);
               parsedGrades = [
@@ -151,16 +124,24 @@ export default function App() {
               ];
             }
 
+            const existing = INITIAL_PRODUCTS.find((p) =>
+              p.sku === sp.sku || p.sku.split('-')[0] === (sp.sku || '').split('-')[0] ||
+              p.name_en.toLowerCase().includes((sp.name_en || '').toLowerCase()) ||
+              (p.category === 'almonds' && sp.sku === 'BAD-001') ||
+              (p.category === 'walnuts' && sp.sku === 'AKH-001') ||
+              (p.category === 'dried-fruits' && sp.sku === 'KIS-001')
+            );
+
             return {
               id: sp.id,
               sku: sp.sku || existing?.sku || `JZ-${sp.id}`,
-              category: (sp.category as any) || existing?.category || (isCashew ? 'cashews' : 'dryfruits'),
-              categoryLabel_en: sp.weight || existing?.categoryLabel_en || '1kg / 500g Pack',
-              categoryLabel_hi: sp.weight || existing?.categoryLabel_hi || '1kg / 500g पैक',
+              category: (sp.category as Product['category']) || existing?.category || (/cashew|kaju/i.test(sp.name_en) ? 'cashews' : 'blends'),
+              categoryLabel_en: sp.weight || '1kg / 500g Pack',
+              categoryLabel_hi: sp.weight || '1kg / 500g पैक',
               name_en: sp.name_en || existing?.name_en || 'Product',
               name_hi: sp.name_hi || existing?.name_hi || sp.name_en || 'उत्पाद',
-              subtitle_en: sp.weight || existing?.subtitle_en || 'Available in 1kg & 500g packs',
-              subtitle_hi: sp.weight || existing?.subtitle_hi || '1kg और 500g पैक में उपलब्ध',
+              subtitle_en: sp.weight || 'Available in 1kg & 500g packs',
+              subtitle_hi: sp.weight || '1kg और 500g पैक में उपलब्ध',
               description_en: sp.description_en || existing?.description_en || '',
               description_hi: sp.description_hi || existing?.description_hi || '',
               origin_en: 'Siyaganj, Indore',
@@ -177,27 +158,13 @@ export default function App() {
             };
           });
 
-          // Ensure canonical products like Makhana, Badam, Akhrot, Kishmish, Pistachio, Diwali Special Box are never lost
-          INITIAL_PRODUCTS.forEach((ip) => {
-            const found = mapped.some(
-              (m) =>
-                m.name_en.toLowerCase() === ip.name_en.toLowerCase() ||
-                m.sku.toLowerCase() === ip.sku.toLowerCase()
-            );
-            if (!found) {
-              mapped.push(ip);
-            }
-          });
-
-          if (mapped.length > 0) {
-            setProducts(mapped);
-            try {
-              localStorage.setItem('jainzee_products_v12', JSON.stringify(mapped));
-            } catch {}
-          }
+          setProducts(mapped);
         }
       })
       .catch(() => {});
+    void refreshProducts();
+    window.addEventListener('focus', refreshProducts);
+    return () => window.removeEventListener('focus', refreshProducts);
   }, []);
 
   useEffect(() => {
@@ -211,7 +178,7 @@ export default function App() {
   }, [lang]);
 
   useEffect(() => {
-    localStorage.setItem('jainzee_products_v8', JSON.stringify(products));
+    localStorage.setItem('jainzee_products_v13', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
@@ -437,7 +404,7 @@ export default function App() {
         cartCount={totalCartItems}
         onOpenCart={() => setCartDrawerOpen(true)}
         onOpenTracker={() => setTrackerModalOpen(true)}
-        onOpenAdmin={() => setAdminModalOpen(true)}
+        onOpenAdmin={() => window.location.assign('/admin/products')}
         onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
         onOpenShopTour={() => setShopTourModalOpen(true)}
       />
@@ -457,25 +424,12 @@ export default function App() {
           onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
         />
 
-        <ShopTourSection
-          lang={lang}
-          onOpenModal={() => setShopTourModalOpen(true)}
-        />
-
+        <ShopTourSection lang={lang} onOpenModal={() => setShopTourModalOpen(true)} />
         <RoasteryAndStorySection lang={lang} />
       </main>
 
-      <Footer
-        lang={lang}
-        onOpenAdmin={() => setAdminModalOpen(true)}
-        onOpenShopTour={() => setShopTourModalOpen(true)}
-      />
-
-      <ShopTourModal
-        isOpen={shopTourModalOpen}
-        onClose={() => setShopTourModalOpen(false)}
-        lang={lang}
-      />
+      <Footer lang={lang} onOpenAdmin={() => window.location.assign('/admin/products')} onOpenShopTour={() => setShopTourModalOpen(true)} />
+      <ShopTourModal isOpen={shopTourModalOpen} onClose={() => setShopTourModalOpen(false)} lang={lang} />
 
       <DiwaliSpecialPopup
         isOpen={diwaliPopupOpen}
@@ -523,25 +477,6 @@ export default function App() {
         onReorder={handleReorder}
       />
 
-      <AuditAndDeployModal
-        isOpen={adminModalOpen}
-        onClose={() => setAdminModalOpen(false)}
-        orders={orders}
-        onUpdateOrderStatus={handleUpdateOrderStatus}
-        onToggleArchiveOrder={handleToggleArchiveOrder}
-        onDeleteOrder={handleDeleteOrder}
-        products={products}
-        onSaveProduct={handleSaveProduct}
-        onDeleteProduct={handleDeleteProduct}
-        onUpdateProductStock={handleUpdateProductStock}
-        coupons={coupons}
-        onAddCoupon={handleAddCoupon}
-        onToggleCoupon={handleToggleCoupon}
-        onDeleteCoupon={handleDeleteCoupon}
-        settings={settings}
-        onSaveSettings={setSettings}
-        onOpenDiwaliSpecial={() => setDiwaliPopupOpen(true)}
-      />
 
       {toastMessage && (
         <div

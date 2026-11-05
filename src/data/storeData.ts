@@ -166,7 +166,7 @@ export const INITIAL_PRODUCTS: Product[] = [
       'सफेद, बड़े दाने वाले प्रीमियम फूल मखाना। कैल्शियम, प्रोटीन और एंटीऑक्सीडेंट से भरपूर — भूनकर खाने और व्रत के लिए सर्वोत्तम।',
     origin_en: 'Siyaganj, Indore',
     origin_hi: 'सियागंज, इंदौर',
-    image: '/images/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png',
+    image: '/static/uploads/Gemini_Generated_Image_6qjj8c6qjj8c6qjj.png',
     fallbackColor: '#FDF8EE',
     stock: 100,
     featuredTag_en: 'Superfood',
@@ -217,7 +217,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     subtitle_en: 'Whole Walnuts (1kg / 500g)',
     subtitle_hi: 'साबुत अखरोट (1kg / 500g)',
     description_en:
-      'Whole walnuts with light-colored kernels, rich in Omega-3 fatty acids and antioxidants. (Note: 500g price ₹949 is as configured).',
+      'Whole walnuts with light-colored kernels, rich in Omega-3 fatty acids and antioxidants.',
     description_hi:
       'हल्के रंग की गिरी वाले साबुत अखरोट, ओमेगा-3 फैटी एसिड और एंटीऑक्सीडेंट से भरपूर।',
     origin_en: 'Siyaganj, Indore',
@@ -229,7 +229,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     featuredTag_hi: 'प्रीमियम',
     grades: [
       { label: '1kg', weightGrams: 1000, price: 899, oldPrice: 1049 },
-      { label: '500g', weightGrams: 500, price: 949, oldPrice: 1099 },
+      { label: '500g', weightGrams: 500, price: 449, oldPrice: 549 },
     ],
     nutritionPer100g: { energyKcal: 654, proteinG: 15.2, healthyFatsG: 65.2, fiberG: 6.7 },
     reviews: [],
